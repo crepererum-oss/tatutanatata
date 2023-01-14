@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use commands::export::ExportCLIConfig;
 use futures::FutureExt;
 use logging::{setup_logging, LoggingCLIConfig};
 use login::{perform_login, LoginCLIConfig};
@@ -36,6 +37,9 @@ struct Args {
 enum Command {
     /// List folders.
     ListFolders,
+
+    /// Export emails
+    Export(ExportCLIConfig),
 }
 
 #[tokio::main]
@@ -55,9 +59,14 @@ async fn main() -> Result<()> {
                     let folders = commands::list_folders::list_folders(webdriver)
                         .await
                         .context("list folders")?;
-                    for folder in folders {
-                        println!("{folder}");
+                    for (_anchor, title) in folders {
+                        println!("{title}");
                     }
+                }
+                Command::Export(config) => {
+                    commands::export::export(config, webdriver)
+                        .await
+                        .context("export")?;
                 }
             }
 
