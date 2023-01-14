@@ -1,7 +1,11 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use futures::future::BoxFuture;
-use thirtyfour::{DesiredCapabilities, WebDriver};
+use thirtyfour::{
+    common::capabilities::firefox::FirefoxPreferences, DesiredCapabilities, WebDriver,
+};
 use tracing::debug;
 
 use crate::error::MultiResultExt;
@@ -17,11 +21,29 @@ pub struct WebdriverCLIConfig {
 /// Run given async method with the given webdriver.
 ///
 /// This ensures that the webdriver is shut down after the given future finishes.
-pub async fn run_webdriver<F>(config: WebdriverCLIConfig, f: F) -> Result<()>
+pub async fn run_webdriver<F>(config: WebdriverCLIConfig, storage_path: &Path, f: F) -> Result<()>
 where
     for<'a> F: FnOnce(&'a WebDriver) -> BoxFuture<'a, Result<()>>,
 {
+    let mut prefs = FirefoxPreferences::new();
+    prefs
+        .set("browser.download.folderList", 2)
+        .context("set pref")?;
+    prefs
+        .set("browser.download.manager.showWhenStarting", false)
+        .context("set pref")?;
+    prefs
+        .set("browser.download.dir", storage_path.display().to_string())
+        .context("set pref")?;
+    prefs
+        .set(
+            "browser.helperApps.neverAsk.saveToDisk",
+            "application/octet-stream",
+        )
+        .context("set pref")?;
+
     let mut caps = DesiredCapabilities::firefox();
+    caps.set_preferences(prefs).context("set preferences")?;
     caps.set_headless().context("enable headless")?;
 
     let addr = format!("http://localhost:{}", config.webdriver_port);

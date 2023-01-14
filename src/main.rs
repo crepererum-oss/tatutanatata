@@ -4,12 +4,14 @@ use commands::export::ExportCLIConfig;
 use futures::FutureExt;
 use logging::{setup_logging, LoggingCLIConfig};
 use login::{perform_login, LoginCLIConfig};
+use storage::{setup_storage, StorageCLIConfig};
 use webdriver::{run_webdriver, WebdriverCLIConfig};
 
 mod commands;
 mod error;
 mod logging;
 mod login;
+mod storage;
 mod webdriver;
 
 /// CLI args.
@@ -26,6 +28,10 @@ struct Args {
     /// Login config.
     #[clap(flatten)]
     login_cfg: LoginCLIConfig,
+
+    /// Storage config.
+    #[clap(flatten)]
+    storage_cfg: StorageCLIConfig,
 
     /// Command
     #[clap(subcommand)]
@@ -48,7 +54,14 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     setup_logging(args.logging_cfg).context("logging setup")?;
 
-    run_webdriver(args.webdriver_cfg, |webdriver| {
+    let storage_folder = setup_storage(args.storage_cfg)
+        .await
+        .context("setup storage")?;
+    let storage_folder_captured = storage_folder.clone();
+
+    run_webdriver(args.webdriver_cfg, &storage_folder, move |webdriver| {
+        let storage_folder = storage_folder_captured.clone();
+
         async move {
             perform_login(args.login_cfg, webdriver)
                 .await
@@ -64,7 +77,7 @@ async fn main() -> Result<()> {
                     }
                 }
                 Command::Export(config) => {
-                    commands::export::export(config, webdriver)
+                    commands::export::export(config, &storage_folder, webdriver)
                         .await
                         .context("export")?;
                 }
