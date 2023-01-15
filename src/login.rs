@@ -1,9 +1,11 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{Context, Result};
 use clap::Parser;
 use thirtyfour::{By, WebDriver};
 use tracing::debug;
+
+use crate::thirtyfour_util::FindExt;
 
 /// Login CLI config.
 #[derive(Debug, Parser)]
@@ -25,33 +27,14 @@ pub async fn perform_login(config: LoginCLIConfig, webdriver: &WebDriver) -> Res
         .context("go to webinterface")?;
     debug!("navigated to login page");
 
-    let inputs = webdriver
-        .find_all(By::Tag("input"))
+    let input_username = webdriver
+        .find_one_with_attr(By::Tag("input"), "autocomplete", "email")
         .await
-        .context("find input elements")?;
-    let mut input_username = None;
-    let mut input_password = None;
-    for input in inputs {
-        match input
-            .attr("autocomplete")
-            .await
-            .context("element attr")?
-            .as_deref()
-        {
-            Some("email") => {
-                ensure!(input_username.is_none(), "multiple username inputs");
-                input_username = Some(input);
-            }
-            Some("current-password") => {
-                ensure!(input_password.is_none(), "multiple password inputs");
-                input_password = Some(input);
-            }
-            _ => {}
-        }
-    }
-
-    let input_username = input_username.ok_or_else(|| anyhow!("no username input"))?;
-    let input_password = input_password.ok_or_else(|| anyhow!("no password input"))?;
+        .context("find username input")?;
+    let input_password = webdriver
+        .find_one_with_attr(By::Tag("input"), "autocomplete", "current-password")
+        .await
+        .context("find password input")?;
     debug!("found username and password inputs");
 
     input_username
@@ -64,23 +47,10 @@ pub async fn perform_login(config: LoginCLIConfig, webdriver: &WebDriver) -> Res
         .context("enter password")?;
     debug!("entered username and password");
 
-    let buttons = webdriver
-        .find_all(By::Tag("button"))
+    let login_button = webdriver
+        .find_one_with_attr(By::Tag("button"), "title", "Log in")
         .await
-        .context("find button elements")?;
-    let mut login_button = None;
-    for button in buttons {
-        if let Some("Log in") = button
-            .attr("title")
-            .await
-            .context("element attr")?
-            .as_deref()
-        {
-            ensure!(login_button.is_none(), "multiple login buttons");
-            login_button = Some(button);
-        }
-    }
-    let login_button = login_button.ok_or_else(|| anyhow!("no login button"))?;
+        .context("find login button")?;
     debug!("found login button");
 
     login_button.click().await.context("click login button")?;

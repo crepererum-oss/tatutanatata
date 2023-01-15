@@ -5,6 +5,8 @@ use clap::Parser;
 use thirtyfour::{By, WebDriver, WebElement};
 use tracing::info;
 
+use crate::thirtyfour_util::FindExt;
+
 use super::list_folders::list_folders;
 
 /// Export CLI config.
@@ -98,47 +100,22 @@ async fn export_round(
 }
 
 async fn export_current_mail(storage_folder: &Path, webdriver: &WebDriver) -> Result<()> {
-    let mut action_bar = webdriver
-        .find_all(By::ClassName("action-bar"))
+    let action_bar = webdriver
+        .find_one(By::ClassName("action-bar"))
         .await
         .context("find action-bar")?;
-    ensure!(
-        action_bar.len() == 1,
-        "should have exactly one action bar but found {}",
-        action_bar.len()
-    );
-    let action_bar = action_bar.remove(0);
 
-    let buttons = action_bar
-        .find_all(By::Tag("button"))
+    let more_button = action_bar
+        .find_one_with_attr(By::Tag("button"), "title", "More")
         .await
-        .context("find buttons")?;
-    let mut more_button = None;
-    for button in buttons {
-        if let Some("More") = button
-            .attr("title")
-            .await
-            .context("element attr")?
-            .as_deref()
-        {
-            ensure!(more_button.is_none(), "multiple more buttons");
-            more_button = Some(button);
-        }
-    }
-    let more_button = more_button.ok_or_else(|| anyhow!("no more button"))?;
+        .context("find more button")?;
 
     more_button.click().await.context("click more button")?;
 
-    let mut dropdown_panel = webdriver
-        .find_all(By::ClassName("dropdown-panel"))
+    let dropdown_panel = webdriver
+        .find_one(By::ClassName("dropdown-panel"))
         .await
         .context("find dropdown-panel")?;
-    ensure!(
-        dropdown_panel.len() == 1,
-        "should have exactly one dropdown panel but found {}",
-        dropdown_panel.len()
-    );
-    let dropdown_panel = dropdown_panel.remove(0);
 
     let buttons = dropdown_panel
         .find_all(By::Tag("button"))
@@ -146,16 +123,10 @@ async fn export_current_mail(storage_folder: &Path, webdriver: &WebDriver) -> Re
         .context("find buttons")?;
     let mut export_button = None;
     for button in buttons {
-        let mut text_ellipsis = button
-            .find_all(By::ClassName("text-ellipsis"))
+        let text_ellipsis = button
+            .find_one(By::ClassName("text-ellipsis"))
             .await
             .context("find text-ellipsis")?;
-        ensure!(
-            text_ellipsis.len() == 1,
-            "should have exactly one text-ellipsis but found {}",
-            text_ellipsis.len()
-        );
-        let text_ellipsis = text_ellipsis.remove(0);
 
         if text_ellipsis.text().await.context("element text")? == "Export" {
             ensure!(export_button.is_none(), "multiple export buttons");
@@ -198,17 +169,10 @@ async fn count_files(path: &Path) -> Result<usize> {
 }
 
 async fn get_mail_list(webdriver: &WebDriver) -> Result<WebElement> {
-    let mut mail_list = webdriver
-        .find_all(By::ClassName("mail-list"))
+    let mail_list = webdriver
+        .find_one(By::ClassName("mail-list"))
         .await
         .context("find mail list")?;
-
-    ensure!(
-        mail_list.len() == 1,
-        "should have exactly one mail list but found {}",
-        mail_list.len()
-    );
-    let mail_list = mail_list.remove(0);
 
     let tag_name = mail_list.tag_name().await.context("get tag name")?;
     ensure!(
@@ -223,16 +187,10 @@ async fn get_mail_list(webdriver: &WebDriver) -> Result<WebElement> {
 async fn is_mail_list_loading(webdriver: &WebDriver) -> Result<bool> {
     let mail_list = get_mail_list(webdriver).await.context("get mail-list")?;
 
-    let mut progress_icon = mail_list
-        .find_all(By::ClassName("icon-progress"))
+    let progress_icon = mail_list
+        .find_one(By::ClassName("icon-progress"))
         .await
         .context("find progress icon")?;
-    ensure!(
-        progress_icon.len() == 1,
-        "should have exactly one progress icon but found {}",
-        progress_icon.len()
-    );
-    let progress_icon = progress_icon.remove(0);
     progress_icon.is_displayed().await.context("is displayed")
 }
 
@@ -275,16 +233,10 @@ async fn ensure_list_is_ready(webdriver: &WebDriver) -> Result<()> {
 async fn ensure_modal_is_closed(webdriver: &WebDriver) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
-            let mut modal = webdriver
-                .find_all(By::Id("modal"))
+            let modal = webdriver
+                .find_one(By::Id("modal"))
                 .await
                 .context("find modal")?;
-            ensure!(
-                modal.len() == 1,
-                "should have exactly one modal but found {}",
-                modal.len()
-            );
-            let modal = modal.remove(0);
 
             if !modal.is_displayed().await.context("modal displayed")? {
                 return Ok::<_, anyhow::Error>(());

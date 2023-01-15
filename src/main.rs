@@ -12,6 +12,7 @@ mod error;
 mod logging;
 mod login;
 mod storage;
+mod thirtyfour_util;
 mod webdriver;
 
 /// CLI args.
