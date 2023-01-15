@@ -38,7 +38,7 @@ $ git clone https://github.com/crepererum/tatutanatata.git
 $ cd tatutanatata
 ```
 
-Then create an `.env` with your credentials:
+Then create an `.env` file with your credentials:
 
 ```text
 TUTANOTA_CLI_USERNAME=fooooooo@tutanota.de
