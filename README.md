@@ -8,7 +8,7 @@ CLI (Command Line Interface) for [Tutanota], mostly meant for mass export.
 
 
 ## Why
-[Tutanota] simple [does NOT support single-click export of your emails](issue1292). This is bad because their data
+[Tutanota] simple does NOT support single-click export of your emails (see [issue1292]). This is bad because their data
 format is proprietary (someone could argue that this even violats the [GDPR]). Now even if you are a happy customer of
 theirs[^me_as_a_customer], you may want to export your email for the following reasons:
 
