@@ -38,12 +38,15 @@ $ git clone https://github.com/crepererum/tatutanatata.git
 $ cd tatutanatata
 ```
 
-Then create an `.env` file with your credentials:
+Then create a file titled `.env` with your credentials:
 
 ```text
 TUTANOTA_CLI_USERNAME=fooooooo@tutanota.de
 TUTANOTA_CLI_PASSWORD=my_secret_password
+TUTANOTA_CLI_ONETIMECODE=000000
 ```
+
+Note: You can leave the ONETIMECODE variable as displayed above even if your account does not have 2FA, or you can remove that line from your `.env` file.
 
 First list your folders:
 
