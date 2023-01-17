@@ -62,7 +62,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --all-features --workspace
+          args: --document-private-items --no-deps --all-features --workspace
 
       - name: cargo bench
         uses: actions-rs/cargo@v1
