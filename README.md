@@ -46,7 +46,7 @@ TUTANOTA_CLI_PASSWORD=my_secret_password
 TUTANOTA_CLI_ONETIMECODE=000000
 ```
 
-Note: You can leave the ONETIMECODE variable as displayed above even if your account does not have 2FA, or you can remove that line from your `.env` file.
+Note: You can leave the `ONETIMECODE` variable as displayed above even if your account does not have 2FA, or you can remove that line from your `.env` file.
 
 First list your folders:
 
