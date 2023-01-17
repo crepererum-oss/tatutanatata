@@ -40,23 +40,17 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: cargo check
+      - name: cargo clippy
         uses: actions-rs/cargo@v1
         with:
-          command: hack
-          args: check --workspace --benches --all-features
+          command: clippy
+          args: --all-features --all-targets --workspace
 
       - name: cargo build
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace --all-features
-
-      - name: cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-features --all-targets --workspace
 
       - name: cargo test
         uses: actions-rs/cargo@v1
