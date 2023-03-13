@@ -9,7 +9,7 @@ anyhow = "1.0.69"
 async-trait = "0.1.66"
 clap = { version = "4.1.8", features = ["derive", "env"] }
 dotenvy = "0.15.6"
-futures = "0.3.26"
+futures = "0.3.27"
 thirtyfour = "0.31.0"
 tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1.37"
