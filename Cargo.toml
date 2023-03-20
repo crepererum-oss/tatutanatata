@@ -7,7 +7,7 @@ license = "MIT/Apache-2.0"
 [dependencies]
 anyhow = "1.0.69"
 async-trait = "0.1.66"
-clap = { version = "4.1.9", features = ["derive", "env"] }
+clap = { version = "4.1.11", features = ["derive", "env"] }
 dotenvy = "0.15.6"
 futures = "0.3.27"
 thirtyfour = "0.31.0"
