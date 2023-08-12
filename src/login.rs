@@ -72,6 +72,10 @@ pub async fn perform_login(config: LoginCLIConfig, webdriver: &WebDriver) -> Res
     .context("wait for login")??;
     debug!("login done");
 
+    confirm_dialog(webdriver)
+        .await
+        .context("confirm potential dialog")?;
+
     Ok(())
 }
 
@@ -93,4 +97,25 @@ async fn has_new_email_button(webdriver: &WebDriver) -> Result<bool> {
     }
 
     Ok(false)
+}
+
+async fn confirm_dialog(webdriver: &WebDriver) -> Result<()> {
+    debug!("confirm potential dialogs");
+
+    let Some(dialog) = webdriver.find_at_most_one(By::ClassName("dialog")).await.context("find dialog box")? else {
+        debug!("no dialog found");
+        return Ok(());
+    };
+    debug!("found dialog, trying to click OK");
+
+    let ok_button = dialog
+        .find_one_with_attr(By::Tag("button"), "title", "Ok")
+        .await
+        .context("find OK button")?;
+    debug!("found OK button");
+
+    ok_button.click().await.context("click OK button")?;
+    debug!("clicked OK button");
+
+    Ok(())
 }
