@@ -3,7 +3,7 @@ use std::{collections::HashSet, path::Path, time::Duration};
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::Parser;
 use thirtyfour::{By, WebDriver, WebElement};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::thirtyfour_util::FindExt;
 
@@ -197,6 +197,12 @@ async fn is_mail_list_loading(webdriver: &WebDriver) -> Result<bool> {
 async fn navigate_to_folder(folder: &str, webdriver: &WebDriver) -> Result<()> {
     for (anchor, title) in list_folders(webdriver).await.context("list folders")? {
         if title == folder {
+            // modal might be left-over from some login dialog, make sure it is gone before we
+            // attempt to click any buttons
+            ensure_modal_is_closed(webdriver)
+                .await
+                .context("ensure modal is closed")?;
+
             anchor.click().await.context("clicking folder link")?;
 
             ensure_list_is_ready(webdriver)
@@ -231,6 +237,8 @@ async fn ensure_list_is_ready(webdriver: &WebDriver) -> Result<()> {
 }
 
 async fn ensure_modal_is_closed(webdriver: &WebDriver) -> Result<()> {
+    debug!("ensure modal is closed");
+
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
             let modal = webdriver
@@ -247,6 +255,8 @@ async fn ensure_modal_is_closed(webdriver: &WebDriver) -> Result<()> {
     })
     .await
     .context("modal not closing in time")??;
+
+    debug!("modal is closed");
 
     Ok(())
 }

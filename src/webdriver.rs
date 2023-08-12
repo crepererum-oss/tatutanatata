@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -13,6 +13,14 @@ use crate::error::MultiResultExt;
 /// Webdriver CLI config.
 #[derive(Debug, Parser)]
 pub struct WebdriverCLIConfig {
+    /// Create screenshot on failure.
+    #[clap(long, default_value_t = false)]
+    screenshot_on_failure: bool,
+
+    /// Path for screenshot.
+    #[clap(long, default_value = "./screenshot.png")]
+    screenshot_path: PathBuf,
+
     /// Webdriver port.
     #[clap(long, default_value_t = 4444)]
     webdriver_port: u16,
@@ -50,15 +58,25 @@ where
     let driver = WebDriver::new(&addr, caps)
         .await
         .context("webdriver setup")?;
+    driver.maximize_window().await.context("maximize window")?;
     debug!("webdriver setup done");
 
-    let res = f(&driver).await;
+    let res_f = f(&driver).await;
 
-    driver
-        .quit()
-        .await
-        .context("webdriver shutdown")
-        .combine(res)
+    let res_screenshot = if res_f.is_err() && config.screenshot_on_failure {
+        driver
+            .screenshot(&config.screenshot_path)
+            .await
+            .context("create screenshot")
+    } else {
+        Ok(())
+    };
+
+    let res_shutdown = driver.quit().await.context("webdriver shutdown");
+
+    res_shutdown
+        .combine(res_screenshot)
+        .combine(res_f)
         .map_err(|e| e.into_anyhow())?;
     debug!("webdriver shutdown done");
 

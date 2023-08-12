@@ -25,47 +25,44 @@ jobs:
           strict: true
 
       - name: Install Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Geckodriver
+        uses: browser-actions/setup-geckodriver@latest
         with:
-          profile: default
-          toolchain: stable
-          override: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start Geckodriver
+        run: geckodriver &
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
 
       - name: cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-features --all-targets --workspace
+        run: cargo clippy --all-features --all-targets --workspace
 
       - name: cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --all-features
+        run: cargo build --workspace --all-features
 
       - name: cargo test
-        uses: actions-rs/cargo@v1
+        run: cargo test --all-features --workspace
+        env:
+          TUTANOTA_CLI_USERNAME: ${{ secrets.TUTANOTA_CLI_USERNAME }}
+          TUTANOTA_CLI_PASSWORD: ${{ secrets.TUTANOTA_CLI_PASSWORD }}
+
+      - name: Preserve Screenshots
+        uses: actions/upload-artifact@v3
+        if: failure()
         with:
-          command: test
-          args: --all-features --workspace
+          name: screenshots
+          path: "*.png"
+          if-no-files-found: ignore
 
       - name: cargo doc
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --document-private-items --no-deps --all-features --workspace
+        run: cargo doc --document-private-items --no-deps --all-features --workspace
 
       - name: cargo bench
-        uses: actions-rs/cargo@v1
-        with:
-          command: bench
-          args: --profile=dev --all-features --workspace -- --test
+        run: cargo bench --profile=dev --all-features --workspace -- --test

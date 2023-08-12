@@ -20,13 +20,13 @@ pub struct LoggingCLIConfig {
 pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
     LogTracer::init()?;
 
-    let filter = match config.log_verbose_count {
+    let base_filter = match config.log_verbose_count {
         0 => "warn",
         1 => "info",
         2 => "debug",
         _ => "trace",
     };
-    let filter = EnvFilter::try_new(filter)?;
+    let filter = EnvFilter::try_new(format!("{base_filter},hyper=info"))?;
 
     let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
 
