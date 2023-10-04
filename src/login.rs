@@ -102,7 +102,11 @@ async fn has_new_email_button(webdriver: &WebDriver) -> Result<bool> {
 async fn confirm_dialog(webdriver: &WebDriver) -> Result<()> {
     debug!("confirm potential dialogs");
 
-    let Some(dialog) = webdriver.find_at_most_one(By::ClassName("dialog")).await.context("find dialog box")? else {
+    let Some(dialog) = webdriver
+        .find_at_most_one(By::ClassName("dialog"))
+        .await
+        .context("find dialog box")?
+    else {
         debug!("no dialog found");
         return Ok(());
     };

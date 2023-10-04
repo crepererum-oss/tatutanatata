@@ -22,12 +22,13 @@ pub async fn list_folders(webdriver: &WebDriver) -> Result<Vec<(WebElement, Stri
     let mut folders = Vec::with_capacity(rows.len());
     let mut seen = HashSet::new();
     for row in rows {
-        let Some(anchor )= row
+        let Some(anchor) = row
             .find_at_most_one(By::Tag("a"))
             .await
-            .context("find folder anchor")? else {
-                continue
-            };
+            .context("find folder anchor")?
+        else {
+            continue;
+        };
 
         let title = anchor
             .attr("title")
