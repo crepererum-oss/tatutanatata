@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use anyhow::{anyhow, ensure, Context, Result};
 use thirtyfour::{By, WebDriver, WebElement};
@@ -7,6 +7,26 @@ use tracing::debug;
 use crate::thirtyfour_util::FindExt;
 
 pub async fn list_folders(webdriver: &WebDriver) -> Result<Vec<(WebElement, String)>> {
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            let folders = list_folders_inner(webdriver).await?;
+
+            if folders.is_empty() {
+                debug!("folders empty, waiting");
+
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            } else {
+                debug!("found folders");
+
+                return Ok(folders);
+            }
+        }
+    })
+    .await
+    .context("no timeout")?
+}
+
+async fn list_folders_inner(webdriver: &WebDriver) -> Result<Vec<(WebElement, String)>> {
     let folder_column = webdriver
         .find_one(By::ClassName("folder-column"))
         .await
@@ -40,9 +60,6 @@ pub async fn list_folders(webdriver: &WebDriver) -> Result<Vec<(WebElement, Stri
 
         folders.push((anchor, title));
     }
-
-    ensure!(!folders.is_empty(), "list of folders should never be empty");
-    debug!("found folders");
 
     Ok(folders)
 }
