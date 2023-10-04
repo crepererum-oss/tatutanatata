@@ -18,4 +18,4 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.12"
-predicates = { version = "3.0.3", default-features = false }
+predicates = { version = "3.0.4", default-features = false }
