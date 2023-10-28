@@ -11,6 +11,7 @@ mod commands;
 mod error;
 mod logging;
 mod login;
+mod non_empty_string;
 mod storage;
 mod thirtyfour_util;
 mod webdriver;
