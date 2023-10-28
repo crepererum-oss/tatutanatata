@@ -37,14 +37,38 @@ pub async fn perform_login(config: LoginCLIConfig, webdriver: &WebDriver) -> Res
         .context("find password input")?;
     debug!("found username and password inputs");
 
-    input_username
-        .send_keys(config.username)
-        .await
-        .context("enter username")?;
-    input_password
-        .send_keys(config.password)
-        .await
-        .context("enter password")?;
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            input_username
+                .send_keys(&config.username)
+                .await
+                .context("enter username")?;
+            input_password
+                .send_keys(&config.password)
+                .await
+                .context("enter password")?;
+
+            // in some cases the UI seems to swallow the value (maybe because some JS wasn't loaded
+            // yet, who knows), so double-check the data and retry if the values are missing
+            let username = input_username
+                .prop("value")
+                .await
+                .context("check username value")?;
+            let password = input_password
+                .prop("value")
+                .await
+                .context("check password value")?;
+            if username.as_ref() == Some(&config.username)
+                && password.as_ref() == Some(&config.password)
+            {
+                return Ok(()) as Result<()>;
+            }
+
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    })
+    .await
+    .context("wait for login fields to converge")??;
     debug!("entered username and password");
 
     let login_button = webdriver
