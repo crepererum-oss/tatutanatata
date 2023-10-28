@@ -5,18 +5,18 @@ use clap::Parser;
 use thirtyfour::{By, WebDriver};
 use tracing::debug;
 
-use crate::thirtyfour_util::FindExt;
+use crate::{non_empty_string::NonEmptyString, thirtyfour_util::FindExt};
 
 /// Login CLI config.
 #[derive(Debug, Parser)]
 pub struct LoginCLIConfig {
     /// Username
     #[clap(long, env = "TUTANOTA_CLI_USERNAME")]
-    username: String,
+    username: NonEmptyString,
 
     /// Password
     #[clap(long, env = "TUTANOTA_CLI_PASSWORD")]
-    password: String,
+    password: NonEmptyString,
 }
 
 /// Perform tutanota webinterface login.
@@ -37,38 +37,22 @@ pub async fn perform_login(config: LoginCLIConfig, webdriver: &WebDriver) -> Res
         .context("find password input")?;
     debug!("found username and password inputs");
 
-    tokio::time::timeout(Duration::from_secs(20), async {
-        loop {
-            input_username
-                .send_keys(&config.username)
-                .await
-                .context("enter username")?;
-            input_password
-                .send_keys(&config.password)
-                .await
-                .context("enter password")?;
-
-            // in some cases the UI seems to swallow the value (maybe because some JS wasn't loaded
-            // yet, who knows), so double-check the data and retry if the values are missing
-            let username = input_username
-                .prop("value")
-                .await
-                .context("check username value")?;
-            let password = input_password
-                .prop("value")
-                .await
-                .context("check password value")?;
-            if username.as_ref() == Some(&config.username)
-                && password.as_ref() == Some(&config.password)
-            {
-                return Ok(()) as Result<()>;
-            }
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-    })
-    .await
-    .context("wait for login fields to converge")??;
+    input_username
+        .focus()
+        .await
+        .context("focus on username input")?;
+    input_username
+        .send_keys(config.username)
+        .await
+        .context("enter username")?;
+    input_password
+        .focus()
+        .await
+        .context("focus on password input")?;
+    input_password
+        .send_keys(config.password)
+        .await
+        .context("enter password")?;
     debug!("entered username and password");
 
     let login_button = webdriver
