@@ -48,7 +48,10 @@ async fn export_round(
     webdriver: &WebDriver,
     mut seen: HashSet<u64>,
 ) -> Result<(HashSet<u64>, bool)> {
-    let mail_list = get_mail_list(webdriver).await.context("get mail-list")?;
+    let mail_list = get_mail_list(webdriver)
+        .await
+        .context("get mail-list")?
+        .context("mailing list no longer loading")?;
 
     let list_height = style_height(&mail_list).await.context("list height")?;
 
@@ -79,11 +82,16 @@ async fn export_round(
 
         info!(list_size, y, "handle entry");
 
-        li.click().await.context("click at list element")?;
+        let checkbox = li
+            .find_one(By::ClassName("checkbox"))
+            .await
+            .context("find list entry checkbox")?;
 
+        checkbox.click().await.context("click at checkbox")?;
         export_current_mail(storage_folder, webdriver)
             .await
             .context("export current main")?;
+        checkbox.click().await.context("click at checkbox")?;
 
         let list_height2 = style_height(&mail_list).await.context("list height")?;
         let first_element_y = style_translate_y(&list_elements_with_y[0].0)
@@ -101,39 +109,29 @@ async fn export_round(
 
 async fn export_current_mail(storage_folder: &Path, webdriver: &WebDriver) -> Result<()> {
     let action_bar = webdriver
-        .find_one(By::ClassName("action-bar"))
+        .find_one(By::ClassName("scrollbar-gutter-stable-or-fallback"))
         .await
         .context("find action-bar")?;
 
-    let more_button = action_bar
-        .find_one_with_attr(By::Tag("button"), "title", "More")
-        .await
-        .context("find more button")?;
-
-    more_button.click().await.context("click more button")?;
-
-    let dropdown_panel = webdriver
-        .find_one(By::ClassName("dropdown-panel"))
-        .await
-        .context("find dropdown-panel")?;
-
-    let buttons = dropdown_panel
-        .find_all(By::Tag("button"))
-        .await
-        .context("find buttons")?;
-    let mut export_button = None;
-    for button in buttons {
-        let text_ellipsis = button
-            .find_one(By::ClassName("text-ellipsis"))
-            .await
-            .context("find text-ellipsis")?;
-
-        if text_ellipsis.text().await.context("element text")? == "Export" {
-            ensure!(export_button.is_none(), "multiple export buttons");
-            export_button = Some(button);
+    let export_button = tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            match action_bar
+                .find_one_with_attr(By::Tag("button"), "title", "Export")
+                .await
+                .context("find export button")
+            {
+                Ok(b) => {
+                    return b;
+                }
+                Err(e) => {
+                    debug!(%e, "cannot find export button");
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+            }
         }
-    }
-    let export_button = export_button.ok_or_else(|| anyhow!("no export button"))?;
+    })
+    .await
+    .context("timeout while waiting for the export button")?;
 
     let n_files_pre = count_files(storage_folder).await.context("count files")?;
 
@@ -168,11 +166,14 @@ async fn count_files(path: &Path) -> Result<usize> {
     Ok(n)
 }
 
-async fn get_mail_list(webdriver: &WebDriver) -> Result<WebElement> {
-    let mail_list = webdriver
-        .find_one(By::ClassName("mail-list"))
+async fn get_mail_list(webdriver: &WebDriver) -> Result<Option<WebElement>> {
+    let Some(mail_list) = webdriver
+        .find_at_most_one(By::ClassName("list"))
         .await
-        .context("find mail list")?;
+        .context("find mail list")?
+    else {
+        return Ok(None);
+    };
 
     let tag_name = mail_list.tag_name().await.context("get tag name")?;
     ensure!(
@@ -181,16 +182,21 @@ async fn get_mail_list(webdriver: &WebDriver) -> Result<WebElement> {
         tag_name
     );
 
-    Ok(mail_list)
+    Ok(Some(mail_list))
 }
 
 async fn is_mail_list_loading(webdriver: &WebDriver) -> Result<bool> {
-    let mail_list = get_mail_list(webdriver).await.context("get mail-list")?;
+    let Some(mail_list) = get_mail_list(webdriver).await.context("get mail-list")? else {
+        return Ok(true);
+    };
 
-    let progress_icon = mail_list
-        .find_one(By::ClassName("icon-progress"))
+    let Some(progress_icon) = mail_list
+        .find_at_most_one(By::ClassName("icon-progress"))
         .await
-        .context("find progress icon")?;
+        .context("find progress icon")?
+    else {
+        return Ok(false);
+    };
     progress_icon.is_displayed().await.context("is displayed")
 }
 
