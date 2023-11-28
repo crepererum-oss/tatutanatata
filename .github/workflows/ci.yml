@@ -4,11 +4,10 @@ name: CI
 # yamllint disable-line rule:truthy
 on:
   pull_request:
+  merge_group:
   push:
     branches:
       - main
-      - staging
-      - trying
     tags:
       - v*
 
