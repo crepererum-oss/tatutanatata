@@ -53,7 +53,7 @@ jobs:
           TUTANOTA_CLI_PASSWORD: ${{ secrets.TUTANOTA_CLI_PASSWORD }}
 
       - name: Preserve Screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: screenshots
