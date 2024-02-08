@@ -7,6 +7,7 @@ use reqwest::Client;
 mod logging;
 mod login;
 mod non_empty_string;
+mod proto;
 
 /// CLI args.
 #[derive(Debug, Parser)]

@@ -1,10 +1,13 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use reqwest::Client;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 use tracing::debug;
 
-use crate::non_empty_string::NonEmptyString;
+use crate::{
+    non_empty_string::NonEmptyString,
+    proto::{SaltServiceRequest, SaltServiceResponse},
+};
 
 /// Login CLI config.
 #[derive(Debug, Parser)]
@@ -23,7 +26,7 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()
     debug!("perform login");
 
     let req = SaltServiceRequest {
-        format: "0".to_owned(),
+        format: Default::default(),
         mail_address: config.username.to_string(),
     };
     let salt: SaltServiceResponse = service_requst(client, "saltservice", &req)
@@ -53,24 +56,4 @@ where
         .context("fetch JSON response")?;
 
     Ok(resp)
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SaltServiceRequest {
-    #[serde(rename = "_format")]
-    format: String,
-
-    mail_address: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SaltServiceResponse {
-    #[serde(rename = "_format")]
-    format: String,
-
-    kdf_version: String,
-
-    salt: String,
 }
