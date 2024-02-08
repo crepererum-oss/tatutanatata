@@ -4,6 +4,7 @@ use logging::{setup_logging, LoggingCLIConfig};
 use login::{perform_login, LoginCLIConfig};
 
 mod client;
+mod crypto;
 mod logging;
 mod login;
 mod non_empty_string;

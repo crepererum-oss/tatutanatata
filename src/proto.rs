@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Format<const F: u8>;
@@ -18,8 +18,6 @@ impl<'de, const F: u8> serde::Deserialize<'de> for Format<F> {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
-
         let s = String::deserialize(deserializer)?;
         let f: u8 = s.parse().map_err(|e| D::Error::custom(e))?;
         if f == F {
@@ -54,8 +52,6 @@ impl<'de> serde::Deserialize<'de> for KdfVersion {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
-
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
             "0" => Ok(Self::Bcrypt),
@@ -130,8 +126,6 @@ impl<'de> serde::Deserialize<'de> for Base64String {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
-
         let s = String::deserialize(deserializer)?;
         let data = BASE64_STANDARD
             .decode(&s)
@@ -196,8 +190,6 @@ impl<'de> serde::Deserialize<'de> for GroupType {
     where
         D: Deserializer<'de>,
     {
-        use serde::de::Error;
-
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
             "0" => Ok(Self::User),

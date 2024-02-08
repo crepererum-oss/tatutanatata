@@ -1,15 +1,14 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use reqwest::Method;
-use sha2::{Digest, Sha256};
 use tracing::debug;
 
 use crate::{
     client::Client,
+    crypto::auth::build_auth_verifier,
     non_empty_string::NonEmptyString,
     proto::{
-        Base64String, KdfVersion, SaltServiceRequest, SaltServiceResponse, SessionServiceRequest,
-        SessionServiceResponse,
+        SaltServiceRequest, SaltServiceResponse, SessionServiceRequest, SessionServiceResponse,
     },
 };
 
@@ -38,9 +37,8 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()
         .await
         .context("get salt")?;
 
-    let passkey = derive_passkey(resp.kdf_version, &config.password, resp.salt.as_ref())
-        .context("derive passkey")?;
-    let auth_verifier = encode_auth_verifier(&passkey);
+    let auth_verifier = build_auth_verifier(resp.kdf_version, &config.password, resp.salt.as_ref())
+        .context("build auth verifier")?;
 
     let req = SessionServiceRequest {
         format: Default::default(),
@@ -60,30 +58,4 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()
     debug!(user = resp.user.as_str(), "got user");
 
     Ok(())
-}
-
-fn derive_passkey(kdf_version: KdfVersion, passphrase: &str, salt: &[u8]) -> Result<Vec<u8>> {
-    match kdf_version {
-        KdfVersion::Bcrypt => {
-            let mut hasher = Sha256::new();
-            hasher.update(passphrase.as_bytes());
-            let passphrase = hasher.finalize();
-
-            let salt: [u8; 16] = salt.try_into().context("salt length")?;
-
-            let hashed = bcrypt::bcrypt(8, salt, &passphrase);
-
-            let mut hasher = Sha256::new();
-            hasher.update(&hashed[..16]);
-            let res = hasher.finalize().to_vec();
-
-            Ok(res)
-        }
-        KdfVersion::Argon2id => unimplemented!("Argon2id"),
-    }
-}
-
-fn encode_auth_verifier(passkey: &[u8]) -> String {
-    let base64 = Base64String::from(passkey).to_string();
-    base64.replace('+', "-").replace('/', "_").replace('=', "")
 }
