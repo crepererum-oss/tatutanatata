@@ -2,12 +2,14 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use logging::{setup_logging, LoggingCLIConfig};
 use login::{perform_login, LoginCLIConfig};
-use reqwest::Client;
 
+mod client;
 mod logging;
 mod login;
 mod non_empty_string;
 mod proto;
+
+use client::Client;
 
 /// CLI args.
 #[derive(Debug, Parser)]
@@ -38,7 +40,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     setup_logging(args.logging_cfg).context("logging setup")?;
 
-    let client = Client::builder().build().context("set up HTTPs client")?;
+    let client = Client::try_new().context("set up client")?;
 
     perform_login(args.login_cfg, &client)
         .await

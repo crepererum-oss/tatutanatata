@@ -1,10 +1,9 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use reqwest::Client;
-use serde::de::DeserializeOwned;
 use tracing::debug;
 
 use crate::{
+    client::Client,
     non_empty_string::NonEmptyString,
     proto::{SaltServiceRequest, SaltServiceResponse},
 };
@@ -29,31 +28,10 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()
         format: Default::default(),
         mail_address: config.username.to_string(),
     };
-    let salt: SaltServiceResponse = service_requst(client, "saltservice", &req)
+    let salt: SaltServiceResponse = client
+        .service_requst("saltservice", &req)
         .await
         .context("get salt")?;
 
     Ok(())
-}
-
-async fn service_requst<Req, Resp>(client: &Client, path: &str, req: &Req) -> Result<Resp>
-where
-    Req: serde::Serialize,
-    Resp: DeserializeOwned,
-{
-    debug!(path, "service request",);
-
-    let resp = client
-        .get(format!("https://app.tuta.com/rest/sys/{path}"))
-        .json(req)
-        .send()
-        .await
-        .context("initial request")?
-        .error_for_status()
-        .context("return status")?
-        .json::<Resp>()
-        .await
-        .context("fetch JSON response")?;
-
-    Ok(resp)
 }
