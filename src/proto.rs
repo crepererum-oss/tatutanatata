@@ -152,6 +152,71 @@ impl serde::Serialize for Null {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GroupType {
+    User,
+    Admin,
+    MailingList,
+    Customer,
+    External,
+    Mail,
+    Contact,
+    File,
+    LocalAdmin,
+    Calendar,
+    Template,
+    ContactList,
+}
+
+impl serde::Serialize for GroupType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match self {
+            Self::User => "0",
+            Self::Admin => "1",
+            Self::MailingList => "2",
+            Self::Customer => "3",
+            Self::External => "4",
+            Self::Mail => "5",
+            Self::Contact => "6",
+            Self::File => "7",
+            Self::LocalAdmin => "8",
+            Self::Calendar => "9",
+            Self::Template => "10",
+            Self::ContactList => "11",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for GroupType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "0" => Ok(Self::User),
+            "1" => Ok(Self::Admin),
+            "2" => Ok(Self::MailingList),
+            "3" => Ok(Self::Customer),
+            "4" => Ok(Self::External),
+            "5" => Ok(Self::Mail),
+            "6" => Ok(Self::Contact),
+            "7" => Ok(Self::File),
+            "8" => Ok(Self::LocalAdmin),
+            "9" => Ok(Self::Calendar),
+            "10" => Ok(Self::Template),
+            "11" => Ok(Self::ContactList),
+            s => Err(D::Error::custom(format!("invalid group type: {s}"))),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaltServiceRequest {
@@ -224,12 +289,32 @@ mod tests {
     fn test_roundtrip_kdf_version() {
         assert_roundtrip(KdfVersion::Bcrypt);
         assert_roundtrip(KdfVersion::Argon2id);
+
+        assert_deser_error::<KdfVersion>(r#""2""#, "invalid KDF version: 2");
     }
 
     #[test]
     fn test_roundtrip_base64trip() {
         assert_roundtrip(Base64String::from(b""));
         assert_roundtrip(Base64String::from(b"foo"));
+    }
+
+    #[test]
+    fn test_roundtrip_group_type() {
+        assert_roundtrip(GroupType::User);
+        assert_roundtrip(GroupType::Admin);
+        assert_roundtrip(GroupType::MailingList);
+        assert_roundtrip(GroupType::Customer);
+        assert_roundtrip(GroupType::External);
+        assert_roundtrip(GroupType::Mail);
+        assert_roundtrip(GroupType::Contact);
+        assert_roundtrip(GroupType::File);
+        assert_roundtrip(GroupType::LocalAdmin);
+        assert_roundtrip(GroupType::Calendar);
+        assert_roundtrip(GroupType::Template);
+        assert_roundtrip(GroupType::ContactList);
+
+        assert_deser_error::<GroupType>(r#""20""#, "invalid group type: 20");
     }
 
     #[track_caller]
