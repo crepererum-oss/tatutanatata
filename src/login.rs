@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use reqwest::Method;
 use tracing::debug;
@@ -24,8 +24,15 @@ pub struct LoginCLIConfig {
     password: NonEmptyString,
 }
 
-/// Perform tutanota webinterface login.
-pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()> {
+/// User session
+#[derive(Debug)]
+pub struct Session {
+    pub user_id: String,
+    pub access_token: String,
+}
+
+/// Perform tutanota login.
+pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<Session> {
     debug!("perform login");
 
     let req = SaltServiceRequest {
@@ -57,5 +64,12 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<()
 
     debug!(user = resp.user.as_str(), "got user");
 
-    Ok(())
+    if !resp.challenges.is_empty() {
+        bail!("not implemented: challenges");
+    }
+
+    Ok(Session {
+        user_id: resp.user,
+        access_token: resp.access_token,
+    })
 }
