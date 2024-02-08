@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use reqwest::Method;
 use serde::de::DeserializeOwned;
 use tracing::debug;
 
@@ -15,16 +16,21 @@ impl Client {
         Ok(Self { inner })
     }
 
-    pub async fn service_requst<Req, Resp>(&self, path: &str, req: &Req) -> Result<Resp>
+    pub async fn service_requst<Req, Resp>(
+        &self,
+        method: Method,
+        path: &str,
+        req: &Req,
+    ) -> Result<Resp>
     where
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        debug!(path, "service request",);
+        debug!(%method, path, "service request",);
 
         let resp = self
             .inner
-            .get(format!("https://app.tuta.com/rest/sys/{path}"))
+            .request(method, format!("https://app.tuta.com/rest/sys/{path}"))
             .json(req)
             .send()
             .await

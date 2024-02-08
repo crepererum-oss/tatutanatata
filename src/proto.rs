@@ -140,6 +140,18 @@ impl<'de> serde::Deserialize<'de> for Base64String {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Null;
+
+impl serde::Serialize for Null {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_none()
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaltServiceRequest {
@@ -158,6 +170,40 @@ pub struct SaltServiceResponse {
     pub kdf_version: KdfVersion,
 
     pub salt: Base64String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionServiceRequest {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub access_key: Null,
+
+    pub auth_token: Null,
+
+    pub auth_verifier: String,
+
+    pub client_identifier: String,
+
+    pub mail_address: String,
+
+    pub recover_code_verifier: Null,
+
+    pub user: Null,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionServiceResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub access_token: String,
+
+    pub challenges: Vec<String>,
+
+    pub user: String,
 }
 
 #[cfg(test)]
