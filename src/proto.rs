@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use base64::prelude::*;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -61,10 +62,15 @@ impl<'de> serde::Deserialize<'de> for KdfVersion {
     }
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Base64String(Box<[u8]>);
 
 impl Base64String {
+    pub fn try_new(s: &str) -> Result<Self> {
+        let data = BASE64_STANDARD.decode(&s)?;
+        Ok(Self(data.into()))
+    }
+
     pub fn base64(&self) -> String {
         BASE64_STANDARD.encode(self.0.as_ref())
     }
@@ -127,10 +133,98 @@ impl<'de> serde::Deserialize<'de> for Base64String {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let data = BASE64_STANDARD
-            .decode(&s)
-            .map_err(|e| D::Error::custom(e))?;
-        Ok(Self(data.into()))
+        Self::try_new(&s).map_err(|e| D::Error::custom(e))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct Base64Url(Base64String);
+
+impl Base64Url {
+    pub fn try_new(s: &str) -> Result<Self> {
+        let mut s = s.replace('-', "+").replace('_', "/");
+        match s.len() % 4 {
+            0 => {}
+            2 => {
+                s.push_str("==");
+            }
+            3 => {
+                s.push_str("=");
+            }
+            _ => {
+                bail!("invalid base64 URL")
+            }
+        }
+        Ok(Self(Base64String::try_new(&s)?))
+    }
+
+    pub fn url(&self) -> String {
+        self.0
+            .base64()
+            .replace('+', "-")
+            .replace('/', "_")
+            .replace('=', "")
+    }
+}
+
+impl std::fmt::Debug for Base64Url {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.url())
+    }
+}
+
+impl std::fmt::Display for Base64Url {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.url())
+    }
+}
+
+impl From<Vec<u8>> for Base64Url {
+    fn from(value: Vec<u8>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<&[u8]> for Base64Url {
+    fn from(value: &[u8]) -> Self {
+        Self(value.into())
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for Base64Url {
+    fn from(value: [u8; N]) -> Self {
+        Self(value.into())
+    }
+}
+
+impl<const N: usize> From<&[u8; N]> for Base64Url {
+    fn from(value: &[u8; N]) -> Self {
+        Self(value.to_owned().into())
+    }
+}
+
+impl AsRef<[u8]> for Base64Url {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl serde::Serialize for Base64Url {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.url())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Base64Url {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::try_new(&s).map_err(|e| D::Error::custom(e))
     }
 }
 
@@ -239,7 +333,7 @@ pub struct SessionServiceRequest {
 
     pub auth_token: Null,
 
-    pub auth_verifier: String,
+    pub auth_verifier: Base64Url,
 
     pub client_identifier: String,
 
@@ -256,7 +350,7 @@ pub struct SessionServiceResponse {
     #[serde(rename = "_format")]
     pub format: Format<0>,
 
-    pub access_token: String,
+    pub access_token: Base64Url,
 
     pub challenges: Vec<String>,
 
@@ -272,11 +366,18 @@ pub struct UserMembership {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UserAuth {
+    pub sessions: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UserResponse {
     #[serde(rename = "_format")]
     pub format: Format<0>,
 
     pub memberships: Vec<UserMembership>,
+    pub auth: UserAuth,
 }
 
 #[cfg(test)]
@@ -302,9 +403,15 @@ mod tests {
     }
 
     #[test]
-    fn test_roundtrip_base64trip() {
+    fn test_roundtrip_base64string() {
         assert_roundtrip(Base64String::from(b""));
         assert_roundtrip(Base64String::from(b"foo"));
+    }
+
+    #[test]
+    fn test_roundtrip_base64url() {
+        assert_roundtrip(Base64Url::from(b""));
+        assert_roundtrip(Base64Url::from(b"foo"));
     }
 
     #[test]
