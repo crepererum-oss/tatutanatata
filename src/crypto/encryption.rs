@@ -116,7 +116,7 @@ mod tests {
 
         assert_eq!(decrypt_value(&k, &v,).unwrap(), b"fooooo".to_owned(),);
 
-        let mut v_broken = v.clone();
+        let mut v_broken = v;
         v_broken[1] = 0;
 
         assert_eq!(

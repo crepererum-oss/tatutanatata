@@ -20,7 +20,7 @@ impl<'de, const F: u8> serde::Deserialize<'de> for Format<F> {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let f: u8 = s.parse().map_err(|e| D::Error::custom(e))?;
+        let f: u8 = s.parse().map_err(D::Error::custom)?;
         if f == F {
             Ok(Self)
         } else {
@@ -67,7 +67,7 @@ pub struct Base64String(Box<[u8]>);
 
 impl Base64String {
     pub fn try_new(s: &str) -> Result<Self> {
-        let data = BASE64_STANDARD.decode(&s)?;
+        let data = BASE64_STANDARD.decode(s)?;
         Ok(Self(data.into()))
     }
 
@@ -133,7 +133,7 @@ impl<'de> serde::Deserialize<'de> for Base64String {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_new(&s).map_err(|e| D::Error::custom(e))
+        Self::try_new(&s).map_err(D::Error::custom)
     }
 }
 
@@ -149,7 +149,7 @@ impl Base64Url {
                 s.push_str("==");
             }
             3 => {
-                s.push_str("=");
+                s.push('=');
             }
             _ => {
                 bail!("invalid base64 URL")
@@ -224,7 +224,7 @@ impl<'de> serde::Deserialize<'de> for Base64Url {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_new(&s).map_err(|e| D::Error::custom(e))
+        Self::try_new(&s).map_err(D::Error::custom)
     }
 }
 
