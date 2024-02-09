@@ -40,7 +40,7 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<Se
         mail_address: config.username.to_string(),
     };
     let resp: SaltServiceResponse = client
-        .service_requst(Method::GET, "saltservice", &req)
+        .service_requst(Method::GET, "saltservice", &req, None)
         .await
         .context("get salt")?;
 
@@ -52,13 +52,13 @@ pub async fn perform_login(config: LoginCLIConfig, client: &Client) -> Result<Se
         access_key: Default::default(),
         auth_token: Default::default(),
         auth_verifier,
-        client_identifier: "test".to_owned(),
+        client_identifier: env!("CARGO_PKG_NAME").to_owned(),
         mail_address: config.username.to_string(),
         recover_code_verifier: Default::default(),
         user: Default::default(),
     };
     let resp: SessionServiceResponse = client
-        .service_requst(Method::POST, "sessionservice", &req)
+        .service_requst(Method::POST, "sessionservice", &req, None)
         .await
         .context("get session")?;
 

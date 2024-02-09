@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use folders::get_folders;
 use logging::{setup_logging, LoggingCLIConfig};
 use login::{perform_login, LoginCLIConfig};
 
 mod client;
 mod crypto;
+mod folders;
 mod logging;
 mod login;
 mod non_empty_string;
@@ -43,9 +45,15 @@ async fn main() -> Result<()> {
 
     let client = Client::try_new().context("set up client")?;
 
-    perform_login(args.login_cfg, &client)
+    let session = perform_login(args.login_cfg, &client)
         .await
         .context("perform login")?;
+
+    match args.command {
+        Command::ListFolders => {
+            get_folders(&client, &session).await.context("get folders")?;
+        }
+    }
 
     Ok(())
 }

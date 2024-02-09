@@ -20,7 +20,8 @@ impl Client {
         &self,
         method: Method,
         path: &str,
-        req: &Req,
+        data: &Req,
+        access_token: Option<&str>,
     ) -> Result<Resp>
     where
         Req: serde::Serialize,
@@ -28,10 +29,15 @@ impl Client {
     {
         debug!(%method, path, "service request",);
 
-        let resp = self
+        let mut req = self
             .inner
-            .request(method, format!("https://app.tuta.com/rest/sys/{path}"))
-            .json(req)
+            .request(method, format!("https://app.tuta.com/rest/sys/{path}"));
+
+        if let Some(access_token) = access_token {
+            req = req.header("accessToken", access_token);
+        }
+
+        let resp = req.json(data)
             .send()
             .await
             .context("initial request")?

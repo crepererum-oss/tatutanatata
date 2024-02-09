@@ -263,6 +263,22 @@ pub struct SessionServiceResponse {
     pub user: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserMembership {
+    pub group_type: GroupType,
+    pub group: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub memberships: Vec<UserMembership>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
