@@ -424,6 +424,7 @@ pub struct SessionServiceResponse {
 pub struct UserMembership {
     pub group_type: GroupType,
     pub group: String,
+    pub sym_enc_g_key: Base64String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -440,6 +441,7 @@ pub struct UserResponse {
 
     pub memberships: Vec<UserMembership>,
     pub auth: UserAuth,
+    pub user_group: UserMembership,
 }
 
 #[derive(Debug, Deserialize)]
@@ -472,8 +474,14 @@ pub struct FolderResponse {
     #[serde(rename = "_format")]
     pub format: Format<0>,
 
+    #[serde(rename = "_ownerEncSessionKey")]
+    pub owner_enc_session_key: Base64String,
+
+    #[serde(rename = "_ownerGroup")]
+    pub owner_group: String,
+
     pub folder_type: MailFolderType,
-    pub name: String,
+    pub name: Base64String,
     pub mails: String,
 }
 

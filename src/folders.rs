@@ -6,7 +6,11 @@ use tracing::debug;
 
 use crate::{
     client::Client,
-    proto::{FolderResponse, GroupType, MailboxGroupRootResponse, MailboxResponse, UserMembership},
+    crypto::encryption::{decrypt_key, decrypt_value},
+    proto::{
+        FolderResponse, GroupType, MailFolderType, MailboxGroupRootResponse, MailboxResponse,
+        UserMembership,
+    },
     session::Session,
 };
 
@@ -55,14 +59,32 @@ pub async fn get_folders(client: &Client, session: &Session) -> Result<Vec<Folde
         .await
         .context("get folders")?;
 
-    // TODO: decrypt name for custom folders
-    Ok(resp
-        .into_iter()
-        .map(|f| Folder {
-            name: f.folder_type.name().to_owned(),
-            mails: f.mails,
+    resp.into_iter()
+        .map(|f| {
+            let session_key = decrypt_key(
+                session
+                    .group_keys
+                    .get(&f.owner_group)
+                    .context("getting owner group key")?,
+                f.owner_enc_session_key.as_ref(),
+            )
+            .context("decrypting session key")?;
+
+            let name = if f.folder_type == MailFolderType::Custom {
+                String::from_utf8(
+                    decrypt_value(&session_key, f.name.as_ref()).context("decrypt folder name")?,
+                )
+                .context("invalid UTF8 string")?
+            } else {
+                f.folder_type.name().to_owned()
+            };
+
+            Ok(Folder {
+                name,
+                mails: f.mails,
+            })
         })
-        .collect())
+        .collect()
 }
 
 fn get_mail_membership(session: &Session) -> Result<UserMembership> {

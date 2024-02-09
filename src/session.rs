@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use reqwest::Method;
@@ -6,7 +8,10 @@ use tracing::debug;
 
 use crate::{
     client::Client,
-    crypto::auth::build_auth_verifier,
+    crypto::{
+        auth::{derive_passkey, encode_auth_verifier},
+        encryption::decrypt_key,
+    },
     non_empty_string::NonEmptyString,
     proto::{
         Base64Url, SaltServiceRequest, SaltServiceResponse, SessionServiceRequest,
@@ -31,6 +36,7 @@ pub struct LoginCLIConfig {
 pub struct Session {
     pub user_id: String,
     pub access_token: Base64Url,
+    pub group_keys: HashMap<String, Vec<u8>>,
     pub user_data: UserResponse,
 }
 
@@ -48,9 +54,9 @@ impl Session {
             .await
             .context("get salt")?;
 
-        let auth_verifier =
-            build_auth_verifier(resp.kdf_version, &config.password, resp.salt.as_ref())
-                .context("build auth verifier")?;
+        let pk = derive_passkey(resp.kdf_version, &config.password, resp.salt.as_ref())
+            .context("derive passkey")?;
+        let auth_verifier = encode_auth_verifier(&pk);
 
         let req = SessionServiceRequest {
             format: Default::default(),
@@ -85,9 +91,22 @@ impl Session {
             .await
             .context("get user")?;
 
+        let user_key = decrypt_key(&pk, user_data.user_group.sym_enc_g_key.as_ref())
+            .context("decrypt user group key")?;
+        let mut group_keys = HashMap::default();
+        group_keys.insert(user_data.user_group.group.clone(), user_key.clone());
+        for group in &user_data.memberships {
+            group_keys.insert(
+                group.group.clone(),
+                decrypt_key(&user_key, group.sym_enc_g_key.as_ref())
+                    .context("decrypt membership group key")?,
+            );
+        }
+
         Ok(Self {
             user_id,
             access_token,
+            group_keys,
             user_data,
         })
     }
