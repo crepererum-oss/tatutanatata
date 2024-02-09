@@ -65,7 +65,10 @@ async fn main() -> Result<()> {
 async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()> {
     match cmd {
         Command::ListFolders => {
-            get_folders(client, session).await.context("get folders")?;
+            let folders = get_folders(client, session).await.context("get folders")?;
+            for f in folders {
+                println!("{}", f.name);
+            }
 
             Ok(())
         }

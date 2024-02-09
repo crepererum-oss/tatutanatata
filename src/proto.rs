@@ -303,6 +303,68 @@ impl<'de> serde::Deserialize<'de> for GroupType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MailFolderType {
+    Custom,
+    Inbox,
+    Sent,
+    Trash,
+    Archive,
+    Spam,
+    Draft,
+}
+
+impl MailFolderType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Custom => "Custom",
+            Self::Inbox => "Inbox",
+            Self::Sent => "Sent",
+            Self::Trash => "Trash",
+            Self::Archive => "Archive",
+            Self::Spam => "Spam",
+            Self::Draft => "Draft",
+        }
+    }
+}
+
+impl serde::Serialize for MailFolderType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match self {
+            Self::Custom => "0",
+            Self::Inbox => "1",
+            Self::Sent => "2",
+            Self::Trash => "3",
+            Self::Archive => "4",
+            Self::Spam => "5",
+            Self::Draft => "6",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MailFolderType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "0" => Ok(Self::Custom),
+            "1" => Ok(Self::Inbox),
+            "2" => Ok(Self::Sent),
+            "3" => Ok(Self::Trash),
+            "4" => Ok(Self::Archive),
+            "5" => Ok(Self::Spam),
+            "6" => Ok(Self::Draft),
+            s => Err(D::Error::custom(format!("invalid mail folder type: {s}"))),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaltServiceRequest {
@@ -380,6 +442,41 @@ pub struct UserResponse {
     pub auth: UserAuth,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailboxGroupRootResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub mailbox: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Folders {
+    pub folders: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailboxResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub folders: Folders,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub folder_type: MailFolderType,
+    pub name: String,
+    pub mails: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -430,6 +527,19 @@ mod tests {
         assert_roundtrip(GroupType::ContactList);
 
         assert_deser_error::<GroupType>(r#""20""#, "invalid group type: 20");
+    }
+
+    #[test]
+    fn test_roundtrip_mail_folder_type() {
+        assert_roundtrip(MailFolderType::Custom);
+        assert_roundtrip(MailFolderType::Inbox);
+        assert_roundtrip(MailFolderType::Sent);
+        assert_roundtrip(MailFolderType::Trash);
+        assert_roundtrip(MailFolderType::Archive);
+        assert_roundtrip(MailFolderType::Spam);
+        assert_roundtrip(MailFolderType::Draft);
+
+        assert_deser_error::<MailFolderType>(r#""20""#, "invalid mail folder type: 20");
     }
 
     #[track_caller]

@@ -18,7 +18,7 @@ impl Client {
         Ok(Self { inner })
     }
 
-    pub async fn service_requst<Req, Resp>(
+    pub async fn service_request<Req, Resp>(
         &self,
         method: Method,
         path: &str,
@@ -29,17 +29,25 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        let resp = self
-            .service_requst_no_response(method, path, data, access_token)
-            .await?
-            .json::<Resp>()
-            .await
-            .context("fetch JSON response")?;
-
-        Ok(resp)
+        self.do_json(method, "sys", path, data, access_token).await
     }
 
-    pub async fn service_requst_no_response<Req>(
+    pub async fn service_request_tutanota<Req, Resp>(
+        &self,
+        method: Method,
+        path: &str,
+        data: &Req,
+        access_token: Option<&Base64Url>,
+    ) -> Result<Resp>
+    where
+        Req: serde::Serialize,
+        Resp: DeserializeOwned,
+    {
+        self.do_json(method, "tutanota", path, data, access_token)
+            .await
+    }
+
+    pub async fn service_request_no_response<Req>(
         &self,
         method: Method,
         path: &str,
@@ -49,11 +57,48 @@ impl Client {
     where
         Req: serde::Serialize,
     {
-        debug!(%method, path, "service request",);
+        self.do_request(method, "sys", path, data, access_token)
+            .await
+    }
+
+    async fn do_json<Req, Resp>(
+        &self,
+        method: Method,
+        prefix: &str,
+        path: &str,
+        data: &Req,
+        access_token: Option<&Base64Url>,
+    ) -> Result<Resp>
+    where
+        Req: serde::Serialize,
+        Resp: DeserializeOwned,
+    {
+        let resp = self
+            .do_request(method, prefix, path, data, access_token)
+            .await?
+            .json::<Resp>()
+            .await
+            .context("fetch JSON response")?;
+
+        Ok(resp)
+    }
+
+    async fn do_request<Req>(
+        &self,
+        method: Method,
+        prefix: &str,
+        path: &str,
+        data: &Req,
+        access_token: Option<&Base64Url>,
+    ) -> Result<Response>
+    where
+        Req: serde::Serialize,
+    {
+        debug!(%method, prefix, path, "service request",);
 
         let mut req = self
             .inner
-            .request(method, format!("https://app.tuta.com/rest/sys/{path}"));
+            .request(method, format!("https://app.tuta.com/rest/{prefix}/{path}"));
 
         if let Some(access_token) = access_token {
             req = req.header("accessToken", access_token.to_string());

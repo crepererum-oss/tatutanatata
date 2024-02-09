@@ -44,7 +44,7 @@ impl Session {
             mail_address: config.username.to_string(),
         };
         let resp: SaltServiceResponse = client
-            .service_requst(Method::GET, "saltservice", &req, None)
+            .service_request(Method::GET, "saltservice", &req, None)
             .await
             .context("get salt")?;
 
@@ -63,7 +63,7 @@ impl Session {
             user: Default::default(),
         };
         let resp: SessionServiceResponse = client
-            .service_requst(Method::POST, "sessionservice", &req, None)
+            .service_request(Method::POST, "sessionservice", &req, None)
             .await
             .context("get session")?;
         let user_id = resp.user;
@@ -76,7 +76,7 @@ impl Session {
         }
 
         let user_data: UserResponse = client
-            .service_requst(
+            .service_request(
                 Method::GET,
                 &format!("user/{}", user_id),
                 &(),
@@ -98,7 +98,7 @@ impl Session {
         debug!(session = session.as_str(), "performing logout",);
 
         client
-            .service_requst_no_response(
+            .service_request_no_response(
                 Method::DELETE,
                 &format!(
                     "session/{}/{}",
