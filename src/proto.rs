@@ -357,7 +357,7 @@ pub struct SessionServiceResponse {
     pub user: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UserMembership {
     pub group_type: GroupType,

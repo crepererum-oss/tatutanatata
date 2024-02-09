@@ -31,6 +31,7 @@ pub struct LoginCLIConfig {
 pub struct Session {
     pub user_id: String,
     pub access_token: Base64Url,
+    pub user_data: UserResponse,
 }
 
 impl Session {
@@ -65,37 +66,43 @@ impl Session {
             .service_requst(Method::POST, "sessionservice", &req, None)
             .await
             .context("get session")?;
+        let user_id = resp.user;
+        let access_token = resp.access_token;
 
-        debug!(user = resp.user.as_str(), "got user");
+        debug!(user = user_id.as_str(), "got user");
 
         if !resp.challenges.is_empty() {
             bail!("not implemented: challenges");
         }
 
+        let user_data: UserResponse = client
+            .service_requst(
+                Method::GET,
+                &format!("user/{}", user_id),
+                &(),
+                Some(&access_token),
+            )
+            .await
+            .context("get user")?;
+
         Ok(Self {
-            user_id: resp.user,
-            access_token: resp.access_token,
+            user_id,
+            access_token,
+            user_data,
         })
     }
 
     pub async fn logout(self, client: &Client) -> Result<()> {
-        let resp: UserResponse = client
-            .service_requst(
-                Method::GET,
-                &format!("user/{}", self.user_id),
-                &(),
-                Some(&self.access_token),
-            )
-            .await
-            .context("get user")?;
+        let session = &self.user_data.auth.sessions;
+
+        debug!(session = session.as_str(), "performing logout",);
 
         client
             .service_requst_no_response(
                 Method::DELETE,
                 &format!(
                     "session/{}/{}",
-                    resp.auth.sessions,
-                    // session_list_id(&self.access_token),
+                    session,
                     session_element_id(&self.access_token)
                 ),
                 &(),
@@ -103,6 +110,8 @@ impl Session {
             )
             .await
             .context("session deletion")?;
+
+        debug!("logout done");
 
         Ok(())
     }
