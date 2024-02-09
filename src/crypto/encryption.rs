@@ -25,8 +25,6 @@ pub fn decrypt_key(encryption_key: &[u8], key_to_be_decrypted: &[u8]) -> Result<
 }
 
 pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
-    dbg!(encryption_key);
-    dbg!(value);
     if let Ok(_k) = TryInto::<[u8; 16]>::try_into(encryption_key) {
         bail!("not implemented: AES128")
     } else if let Ok(k) = TryInto::<[u8; 32]>::try_into(encryption_key) {
