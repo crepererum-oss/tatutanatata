@@ -28,7 +28,9 @@ pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
         2 => "debug",
         _ => "trace",
     };
-    let filter = EnvFilter::try_new(format!("{base_filter},hyper=info"))?;
+    let filter = EnvFilter::try_new(format!(
+        "{base_filter},h2=info,hyper=info,log=info,trust_dns_proto=info,trust_dns_resolver=info"
+    ))?;
 
     let writer = std::io::stderr;
     let subscriber = FmtSubscriber::builder()

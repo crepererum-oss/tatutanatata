@@ -94,6 +94,11 @@ impl Client {
                     }
 
                     // buffer empty
+                    debug!(
+                        path = path.as_str(),
+                        start = state.next_start.as_str(),
+                        "fetch new page",
+                    );
                     state.buffer = this
                         .do_json::<(), Vec<Resp>>(
                             Method::GET,
