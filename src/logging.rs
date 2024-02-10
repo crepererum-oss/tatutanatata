@@ -1,4 +1,6 @@
 //! Logging setup.
+use std::io::IsTerminal;
+
 use anyhow::Result;
 use clap::Parser;
 use tracing_log::LogTracer;
@@ -28,9 +30,11 @@ pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
     };
     let filter = EnvFilter::try_new(format!("{base_filter},hyper=info"))?;
 
+    let writer = std::io::stderr;
     let subscriber = FmtSubscriber::builder()
+        .with_ansi(writer().is_terminal())
         .with_env_filter(filter)
-        .with_writer(std::io::stderr)
+        .with_writer(writer)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
