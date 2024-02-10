@@ -28,7 +28,10 @@ pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
     };
     let filter = EnvFilter::try_new(format!("{base_filter},hyper=info"))?;
 
-    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .finish();
 
     tracing::subscriber::set_global_default(subscriber)?;
 
