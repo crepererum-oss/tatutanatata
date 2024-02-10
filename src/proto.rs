@@ -2,6 +2,10 @@ use anyhow::{bail, Result};
 use base64::prelude::*;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
+pub trait Entity {
+    fn id(&self) -> &str;
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Format<const F: u8>;
 
@@ -474,6 +478,9 @@ pub struct FolderResponse {
     #[serde(rename = "_format")]
     pub format: Format<0>,
 
+    #[serde(rename = "_id")]
+    pub id: [String; 2],
+
     #[serde(rename = "_ownerEncSessionKey")]
     pub owner_enc_session_key: Base64String,
 
@@ -483,6 +490,12 @@ pub struct FolderResponse {
     pub folder_type: MailFolderType,
     pub name: Base64String,
     pub mails: String,
+}
+
+impl Entity for FolderResponse {
+    fn id(&self) -> &str {
+        &self.id[1]
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,10 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    sync::Arc,
+};
 
 use anyhow::{bail, Context, Result};
+use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 use tracing::debug;
 
@@ -20,7 +24,10 @@ pub struct Folder {
     pub mails: String,
 }
 
-pub async fn get_folders(client: &Client, session: &Session) -> Result<Vec<Folder>> {
+pub async fn get_folders(
+    client: &Client,
+    session: &Session,
+) -> Result<impl Stream<Item = Result<Folder>>> {
     let mail_group = get_mail_membership(session).context("get mail group")?;
 
     let resp: MailboxGroupRootResponse = client
@@ -49,42 +56,41 @@ pub async fn get_folders(client: &Client, session: &Session) -> Result<Vec<Folde
 
     debug!(folders = folders.as_str(), "folders found");
 
-    let resp: Vec<FolderResponse> = client
-        .service_request_tutanota(
-            Method::GET,
-            &format!("mailfolder/{folders}?start=------------&count=1000&reverse=false"),
-            &(),
+    let group_keys = Arc::new(session.group_keys.clone());
+    let stream = client
+        .stream::<FolderResponse>(
+            &format!("mailfolder/{folders}"),
             Some(&session.access_token),
         )
-        .await
-        .context("get folders")?;
-
-    resp.into_iter()
-        .map(|f| {
-            let session_key = decrypt_key(
-                session
-                    .group_keys
-                    .get(&f.owner_group)
-                    .context("getting owner group key")?,
-                f.owner_enc_session_key.as_ref(),
-            )
-            .context("decrypting session key")?;
-
-            let name = if f.folder_type == MailFolderType::Custom {
-                String::from_utf8(
-                    decrypt_value(&session_key, f.name.as_ref()).context("decrypt folder name")?,
+        .and_then(move |f| {
+            let group_keys = Arc::clone(&group_keys);
+            async move {
+                let session_key = decrypt_key(
+                    group_keys
+                        .get(&f.owner_group)
+                        .context("getting owner group key")?,
+                    f.owner_enc_session_key.as_ref(),
                 )
-                .context("invalid UTF8 string")?
-            } else {
-                f.folder_type.name().to_owned()
-            };
+                .context("decrypting session key")?;
 
-            Ok(Folder {
-                name,
-                mails: f.mails,
-            })
-        })
-        .collect()
+                let name = if f.folder_type == MailFolderType::Custom {
+                    String::from_utf8(
+                        decrypt_value(&session_key, f.name.as_ref())
+                            .context("decrypt folder name")?,
+                    )
+                    .context("invalid UTF8 string")?
+                } else {
+                    f.folder_type.name().to_owned()
+                };
+
+                Ok(Folder {
+                    name,
+                    mails: f.mails,
+                })
+            }
+        });
+
+    Ok(stream)
 }
 
 fn get_mail_membership(session: &Session) -> Result<UserMembership> {
