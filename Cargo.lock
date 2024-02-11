@@ -1383,7 +1383,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tatutanatata2"
+name = "tatutanatata"
 version = "0.1.0"
 dependencies = [
  "aes",
