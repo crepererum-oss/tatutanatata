@@ -6,7 +6,10 @@ use reqwest::{Method, Response};
 use serde::de::DeserializeOwned;
 use tracing::debug;
 
-use crate::proto::{Base64Url, Entity};
+use crate::{
+    constants::APP_USER_AGENT,
+    proto::{Base64Url, Entity},
+};
 
 const STREAM_BATCH_SIZE: u64 = 1000;
 
@@ -18,8 +21,12 @@ pub struct Client {
 impl Client {
     pub fn try_new() -> Result<Self> {
         let inner = reqwest::Client::builder()
+            .min_tls_version(reqwest::tls::Version::TLS_1_3)
+            .http2_prior_knowledge()
+            .user_agent(APP_USER_AGENT)
             .build()
             .context("set up HTTPs client")?;
+
         Ok(Self { inner })
     }
 

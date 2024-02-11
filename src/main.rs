@@ -9,6 +9,7 @@ use futures::TryStreamExt;
 use logging::{setup_logging, LoggingCLIConfig};
 
 mod client;
+mod constants;
 mod crypto;
 mod folders;
 mod logging;

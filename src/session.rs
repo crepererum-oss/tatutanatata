@@ -8,6 +8,7 @@ use tracing::debug;
 
 use crate::{
     client::Client,
+    constants::APP_USER_AGENT,
     crypto::{
         auth::{derive_passkey, encode_auth_verifier},
         encryption::decrypt_key,
@@ -63,7 +64,7 @@ impl Session {
             access_key: Default::default(),
             auth_token: Default::default(),
             auth_verifier,
-            client_identifier: env!("CARGO_PKG_NAME").to_owned(),
+            client_identifier: APP_USER_AGENT.to_owned(),
             mail_address: config.username.to_string(),
             recover_code_verifier: Default::default(),
             user: Default::default(),
