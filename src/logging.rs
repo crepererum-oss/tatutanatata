@@ -9,10 +9,21 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 /// Logging CLI config.
 #[derive(Debug, Parser)]
 pub struct LoggingCLIConfig {
-    /// Log verbosity.
+    /// Log filter.
+    ///
+    /// Conflicts with `-v`/`--verbose`.
+    #[clap(conflicts_with = "log_verbose_count", long, action)]
+    log_filter: Option<String>,
+
+    /// Verbose logs.
+    ///
+    /// Repeat to increase verbosity.
+    ///
+    /// Conflicts with `--log-filter`.
     #[clap(
         short = 'v',
         long = "verbose",
+        conflicts_with="log_filter",
         action = clap::ArgAction::Count,
     )]
     log_verbose_count: u8,
@@ -22,15 +33,17 @@ pub struct LoggingCLIConfig {
 pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
     LogTracer::init()?;
 
-    let base_filter = match config.log_verbose_count {
-        0 => "warn",
-        1 => "info",
-        2 => "debug",
-        _ => "trace",
+    let filter = match config.log_filter {
+        Some(filter) => filter,
+        None => match config.log_verbose_count {
+            0 => "warn".to_owned(),
+            1 => "info".to_owned(),
+            2 => format!("info,{}=debug", env!("CARGO_PKG_NAME")),
+            3 => "debug".to_owned(),
+            _ => "trace".to_owned(),
+        },
     };
-    let filter = EnvFilter::try_new(format!(
-        "{base_filter},h2=info,hyper=info,log=info,trust_dns_proto=info,trust_dns_resolver=info"
-    ))?;
+    let filter = EnvFilter::try_new(filter)?;
 
     let writer = std::io::stderr;
     let subscriber = FmtSubscriber::builder()
