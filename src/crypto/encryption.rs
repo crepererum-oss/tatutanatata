@@ -39,15 +39,19 @@ pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
             let subkeys = Aes256Subkeys::from(k);
 
             // check mac
-            let mut m = HmacSha256::new_from_slice(&subkeys.mkey).expect("checked length");
+            let mut m = HmacSha256::new_from_slice(&subkeys.mac_key).expect("checked length");
             m.update(payload);
             m.verify_slice(mac)
                 .map_err(|e| anyhow!("{e}"))
                 .context("HMAC verification")?;
 
-            (subkeys.ckey, payload)
+            (subkeys.encryption_key, payload)
         } else {
-            (k, value)
+            // technically this is
+            //     (k, value)
+            //
+            // however we haven't seen this used yet so we just bail out for now
+            bail!("not implemented: value w/o MAC")
         };
 
         // get IV
@@ -67,8 +71,8 @@ pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
 }
 
 struct Aes256Subkeys {
-    ckey: [u8; 32],
-    mkey: [u8; 32],
+    encryption_key: [u8; 32],
+    mac_key: [u8; 32],
 }
 
 impl From<[u8; 32]> for Aes256Subkeys {
@@ -78,8 +82,8 @@ impl From<[u8; 32]> for Aes256Subkeys {
         let hashed = hasher.finalize().to_vec();
 
         Self {
-            ckey: hashed[..32].try_into().expect("check length"),
-            mkey: hashed[32..].try_into().expect("check length"),
+            encryption_key: hashed[..32].try_into().expect("check length"),
+            mac_key: hashed[32..].try_into().expect("check length"),
         }
     }
 }
