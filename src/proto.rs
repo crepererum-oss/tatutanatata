@@ -498,6 +498,22 @@ impl Entity for FolderResponse {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailReponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    #[serde(rename = "_id")]
+    pub id: [String; 2],
+}
+
+impl Entity for MailReponse {
+    fn id(&self) -> &str {
+        &self.id[1]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

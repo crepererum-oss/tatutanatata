@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
@@ -10,7 +10,7 @@ use crate::{
     client::Client,
     constants::APP_USER_AGENT,
     crypto::{
-        auth::{derive_passkey, encode_auth_verifier},
+        auth::{derive_passkey, encode_auth_verifier, UserPassphraseKey},
         encryption::decrypt_key,
     },
     non_empty_string::NonEmptyString,
@@ -37,7 +37,7 @@ pub struct LoginCLIConfig {
 pub struct Session {
     pub user_id: String,
     pub access_token: Base64Url,
-    pub group_keys: HashMap<String, Vec<u8>>,
+    pub group_keys: Arc<GroupKeys>,
     pub user_data: UserResponse,
 }
 
@@ -92,17 +92,8 @@ impl Session {
             .await
             .context("get user")?;
 
-        let user_key = decrypt_key(&pk, user_data.user_group.sym_enc_g_key.as_ref())
-            .context("decrypt user group key")?;
-        let mut group_keys = HashMap::default();
-        group_keys.insert(user_data.user_group.group.clone(), user_key.clone());
-        for group in &user_data.memberships {
-            group_keys.insert(
-                group.group.clone(),
-                decrypt_key(&user_key, group.sym_enc_g_key.as_ref())
-                    .context("decrypt membership group key")?,
-            );
-        }
+        let group_keys =
+            Arc::new(GroupKeys::try_new(&pk, &user_data).context("set up group keys")?);
 
         Ok(Self {
             user_id,
@@ -134,6 +125,34 @@ impl Session {
         debug!("logout done");
 
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct GroupKeys {
+    keys: HashMap<String, Vec<u8>>,
+}
+
+impl GroupKeys {
+    fn try_new(pk: &UserPassphraseKey, user_data: &UserResponse) -> Result<Self> {
+        let user_key = decrypt_key(&pk, user_data.user_group.sym_enc_g_key.as_ref())
+            .context("decrypt user group key")?;
+        let mut group_keys = HashMap::default();
+        group_keys.insert(user_data.user_group.group.clone(), user_key.clone());
+        for group in &user_data.memberships {
+            group_keys.insert(
+                group.group.clone(),
+                decrypt_key(&user_key, group.sym_enc_g_key.as_ref())
+                    .context("decrypt membership group key")?,
+            );
+        }
+
+        Ok(Self { keys: group_keys })
+    }
+
+    pub fn get(&self, group: &str) -> Result<&[u8]> {
+        let key = self.keys.get(group).context("group key not found")?;
+        Ok(key)
     }
 }
 

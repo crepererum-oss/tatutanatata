@@ -15,7 +15,7 @@ use crate::{
         FolderResponse, GroupType, MailFolderType, MailboxGroupRootResponse, MailboxResponse,
         UserMembership,
     },
-    session::Session,
+    session::{GroupKeys, Session},
 };
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl Folder {
 
         debug!(folders = folders.as_str(), "folders found");
 
-        let group_keys = Arc::new(session.group_keys.clone());
+        let group_keys = Arc::clone(&session.group_keys);
         let stream = client
             .stream::<FolderResponse>(
                 &format!("mailfolder/{folders}"),
@@ -65,33 +65,34 @@ impl Folder {
             )
             .and_then(move |f| {
                 let group_keys = Arc::clone(&group_keys);
-                async move {
-                    let session_key = decrypt_key(
-                        group_keys
-                            .get(&f.owner_group)
-                            .context("getting owner group key")?,
-                        f.owner_enc_session_key.as_ref(),
-                    )
-                    .context("decrypting session key")?;
-
-                    let name = if f.folder_type == MailFolderType::Custom {
-                        String::from_utf8(
-                            decrypt_value(&session_key, f.name.as_ref())
-                                .context("decrypt folder name")?,
-                        )
-                        .context("invalid UTF8 string")?
-                    } else {
-                        f.folder_type.name().to_owned()
-                    };
-
-                    Ok(Folder {
-                        name,
-                        mails: f.mails,
-                    })
-                }
+                async move { Self::decode(f, &group_keys) }
             });
 
         Ok(stream)
+    }
+
+    fn decode(resp: FolderResponse, group_keys: &GroupKeys) -> Result<Self> {
+        let session_key = decrypt_key(
+            group_keys
+                .get(&resp.owner_group)
+                .context("getting owner group key")?,
+            resp.owner_enc_session_key.as_ref(),
+        )
+        .context("decrypting session key")?;
+
+        let name = if resp.folder_type == MailFolderType::Custom {
+            String::from_utf8(
+                decrypt_value(&session_key, resp.name.as_ref()).context("decrypt folder name")?,
+            )
+            .context("invalid UTF8 string")?
+        } else {
+            resp.folder_type.name().to_owned()
+        };
+
+        Ok(Folder {
+            name,
+            mails: resp.mails,
+        })
     }
 }
 
