@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use folders::get_folders;
+use folders::Folder;
 use futures::TryStreamExt;
 use logging::{setup_logging, LoggingCLIConfig};
 
@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
 async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()> {
     match cmd {
         Command::ListFolders => {
-            let folders = get_folders(client, session).await.context("get folders")?;
+            let folders = Folder::list(client, session).await.context("get folders")?;
             let mut folders = std::pin::pin!(folders);
 
             while let Some(f) = folders.try_next().await.context("poll folder")? {
