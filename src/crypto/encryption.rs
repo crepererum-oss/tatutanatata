@@ -25,8 +25,44 @@ pub fn decrypt_key(encryption_key: &[u8], key_to_be_decrypted: &[u8]) -> Result<
 }
 
 pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
-    if let Ok(_k) = TryInto::<[u8; 16]>::try_into(encryption_key) {
-        bail!("not implemented: AES128")
+    if let Ok(k) = TryInto::<[u8; 16]>::try_into(encryption_key) {
+        let (k, value) = if value.len() % 2 == 1 {
+            // use mac
+            const MAC_LEN: usize = 32;
+            if value.len() < MAC_LEN + 1 {
+                bail!("mac missing")
+            }
+            let payload = &value[1..(value.len() - MAC_LEN)];
+            let mac = &value[value.len() - MAC_LEN..];
+            let subkeys = Aes128Subkeys::from(k);
+
+            // check mac
+            let mut m = HmacSha256::new_from_slice(&subkeys.mac_key).expect("checked length");
+            m.update(payload);
+            m.verify_slice(mac)
+                .map_err(|e| anyhow!("{e}"))
+                .context("HMAC verification")?;
+
+            (subkeys.encryption_key, payload)
+        } else {
+            // technically this is
+            //     (k, value)
+            //
+            // however we haven't seen this used yet so we just bail out for now
+            bail!("not implemented: value w/o MAC")
+        };
+
+        // get IV
+        const IV_LEN: usize = 16;
+        if value.len() < IV_LEN {
+            bail!("IV missing")
+        }
+        let iv: [u8; IV_LEN] = value[..IV_LEN].try_into().expect("checked length");
+        let value = &value[IV_LEN..];
+        Aes128CbcDec::new(&k.into(), &iv.into())
+            .decrypt_padded_vec_mut::<Pkcs7>(value)
+            .map_err(|e| anyhow!("{e}"))
+            .context("AES decryption")
     } else if let Ok(k) = TryInto::<[u8; 32]>::try_into(encryption_key) {
         let (k, value) = if value.len() % 2 == 1 {
             // use mac
@@ -67,6 +103,24 @@ pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
             .context("AES decryption")
     } else {
         bail!("invalid encryption key length: {}", encryption_key.len())
+    }
+}
+
+struct Aes128Subkeys {
+    encryption_key: [u8; 16],
+    mac_key: [u8; 16],
+}
+
+impl From<[u8; 16]> for Aes128Subkeys {
+    fn from(k: [u8; 16]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(k);
+        let hashed = hasher.finalize().to_vec();
+
+        Self {
+            encryption_key: hashed[..16].try_into().expect("check length"),
+            mac_key: hashed[16..].try_into().expect("check length"),
+        }
     }
 }
 

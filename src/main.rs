@@ -14,6 +14,7 @@ use tracing::{debug, info};
 
 mod blob;
 mod client;
+mod compression;
 mod constants;
 mod crypto;
 mod folders;

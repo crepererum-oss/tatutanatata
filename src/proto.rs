@@ -504,6 +504,12 @@ pub struct MailReponse {
     #[serde(rename = "_format")]
     pub format: Format<0>,
 
+    #[serde(rename = "_ownerEncSessionKey")]
+    pub owner_enc_session_key: Base64String,
+
+    #[serde(rename = "_ownerGroup")]
+    pub owner_group: String,
+
     #[serde(rename = "_id")]
     pub id: [String; 2],
 
@@ -563,7 +569,7 @@ pub struct BlobAccessTokenServiceResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MailBody {
-    pub compressed_text: String,
+    pub compressed_text: Base64String,
 }
 
 #[derive(Debug, Deserialize)]
