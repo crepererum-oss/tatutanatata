@@ -12,6 +12,7 @@ use futures::TryStreamExt;
 use logging::{setup_logging, LoggingCLIConfig};
 use tracing::{debug, info};
 
+mod blob;
 mod client;
 mod constants;
 mod crypto;
@@ -125,7 +126,9 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                     info!(id = mail.mail_id.as_str(), "already exists");
                 } else {
                     info!(id = mail.mail_id.as_str(), "download");
-                    mail.download(client, &target_file).await.context("download mail")?;
+                    mail.download(client, session, &target_file)
+                        .await
+                        .context("download mail")?;
                 }
             }
 

@@ -506,12 +506,79 @@ pub struct MailReponse {
 
     #[serde(rename = "_id")]
     pub id: [String; 2],
+
+    pub mail_details: [String; 2],
 }
 
 impl Entity for MailReponse {
     fn id(&self) -> &str {
         &self.id[1]
     }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobReadRequest {
+    #[serde(rename = "_id")]
+    pub id: String,
+
+    pub archive_id: String,
+    pub instance_ids: Vec<()>,
+    pub instance_list_id: Null,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobAccessTokenServiceRequest {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub archive_data_type: Null,
+    pub read: BlobReadRequest,
+    pub write: Null,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobServer {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobAccessInfo {
+    pub blob_access_token: String,
+    pub servers: Vec<BlobServer>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlobAccessTokenServiceResponse {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub blob_access_info: BlobAccessInfo,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailBody {
+    pub compressed_text: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailDetails {
+    pub body: MailBody,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MailDetailsBlob {
+    #[serde(rename = "_format")]
+    pub format: Format<0>,
+
+    pub details: MailDetails,
 }
 
 #[cfg(test)]

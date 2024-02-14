@@ -12,6 +12,7 @@ use crate::{
 };
 
 const STREAM_BATCH_SIZE: u64 = 1000;
+const DEFAULT_HOST: &str = "https://app.tuta.com";
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -41,7 +42,7 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        self.do_json(method, "sys", path, data, access_token, &[])
+        self.do_json(method, DEFAULT_HOST, "sys", path, data, access_token, &[])
             .await
     }
 
@@ -56,8 +57,66 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        self.do_json(method, "tutanota", path, data, access_token, &[])
-            .await
+        self.do_json(
+            method,
+            DEFAULT_HOST,
+            "tutanota",
+            path,
+            data,
+            access_token,
+            &[],
+        )
+        .await
+    }
+
+    pub async fn service_request_storage<Req, Resp>(
+        &self,
+        method: Method,
+        path: &str,
+        data: &Req,
+        access_token: Option<&Base64Url>,
+    ) -> Result<Resp>
+    where
+        Req: serde::Serialize,
+        Resp: DeserializeOwned,
+    {
+        self.do_json(
+            method,
+            DEFAULT_HOST,
+            "storage",
+            path,
+            data,
+            access_token,
+            &[],
+        )
+        .await
+    }
+
+    pub async fn blob_request<Resp>(
+        &self,
+        host: &str,
+        path: &str,
+        access_token: &Base64Url,
+        ids: &[&str],
+        blob_access_token: &str,
+    ) -> Result<Resp>
+    where
+        Resp: DeserializeOwned,
+    {
+        self.do_json(
+            Method::GET,
+            host,
+            "tutanota",
+            path,
+            &(),
+            None,
+            &[
+                ("accessToken", &access_token.to_string()),
+                ("ids", &ids.join(",")),
+                ("blobAccessToken", blob_access_token),
+            ],
+        )
+        .await
     }
 
     pub async fn service_request_no_response<Req>(
@@ -70,7 +129,7 @@ impl Client {
     where
         Req: serde::Serialize,
     {
-        self.do_request(method, "sys", path, data, access_token, &[])
+        self.do_request(method, DEFAULT_HOST, "sys", path, data, access_token, &[])
             .await
     }
 
@@ -109,6 +168,7 @@ impl Client {
                     state.buffer = this
                         .do_json::<(), Vec<Resp>>(
                             Method::GET,
+                            DEFAULT_HOST,
                             "tutanota",
                             &path,
                             &(),
@@ -139,6 +199,7 @@ impl Client {
     async fn do_json<Req, Resp>(
         &self,
         method: Method,
+        host: &str,
         prefix: &str,
         path: &str,
         data: &Req,
@@ -150,7 +211,7 @@ impl Client {
         Resp: DeserializeOwned,
     {
         let resp = self
-            .do_request(method, prefix, path, data, access_token, query)
+            .do_request(method, host, prefix, path, data, access_token, query)
             .await?
             .json::<Resp>()
             .await
@@ -162,6 +223,7 @@ impl Client {
     async fn do_request<Req>(
         &self,
         method: Method,
+        host: &str,
         prefix: &str,
         path: &str,
         data: &Req,
@@ -175,7 +237,7 @@ impl Client {
 
         let mut req = self
             .inner
-            .request(method, format!("https://app.tuta.com/rest/{prefix}/{path}"));
+            .request(method, format!("{host}/rest/{prefix}/{path}"));
 
         if let Some(access_token) = access_token {
             req = req.header("accessToken", access_token.to_string());
