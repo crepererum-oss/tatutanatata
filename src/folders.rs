@@ -12,8 +12,8 @@ use crate::{
     client::Client,
     crypto::encryption::{decrypt_key, decrypt_value},
     proto::{
-        FolderResponse, GroupType, MailFolderType, MailboxGroupRootResponse, MailboxResponse,
-        UserMembership,
+        enums::{GroupType, MailFolderType},
+        FolderResponse, MailboxGroupRootResponse, MailboxResponse, UserMembership,
     },
     session::{GroupKeys, Session},
 };
