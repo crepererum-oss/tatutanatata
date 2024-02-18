@@ -9,7 +9,7 @@ use crate::{
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
     folders::Folder,
-    proto::{MailDetailsBlob, MailReponse},
+    proto::messages::{MailDetailsBlob, MailReponse},
     session::{GroupKeys, Session},
 };
 

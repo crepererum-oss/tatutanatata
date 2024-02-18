@@ -8,7 +8,7 @@ use tracing::debug;
 
 use crate::{
     constants::APP_USER_AGENT,
-    proto::{binary::Base64Url, Entity},
+    proto::{binary::Base64Url, messages::Entity},
 };
 
 const STREAM_BATCH_SIZE: u64 = 1000;

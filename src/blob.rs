@@ -4,7 +4,9 @@ use serde::de::DeserializeOwned;
 
 use crate::{
     client::Client,
-    proto::{BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest},
+    proto::messages::{
+        BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest,
+    },
     session::Session,
 };
 
