@@ -76,13 +76,13 @@ impl Folder {
             group_keys
                 .get(&resp.owner_group)
                 .context("getting owner group key")?,
-            resp.owner_enc_session_key.as_ref(),
+            resp.owner_enc_session_key,
         )
         .context("decrypting session key")?;
 
         let name = if resp.folder_type == MailFolderType::Custom {
             String::from_utf8(
-                decrypt_value(&session_key, resp.name.as_ref()).context("decrypt folder name")?,
+                decrypt_value(session_key, resp.name.as_ref()).context("decrypt folder name")?,
             )
             .context("invalid UTF8 string")?
         } else {

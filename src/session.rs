@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
@@ -16,6 +16,7 @@ use crate::{
     non_empty_string::NonEmptyString,
     proto::{
         binary::Base64Url,
+        keys::Key,
         messages::{
             SaltServiceRequest, SaltServiceResponse, SessionServiceRequest, SessionServiceResponse,
             UserResponse,
@@ -134,29 +135,37 @@ impl Session {
 
 #[derive(Debug)]
 pub(crate) struct GroupKeys {
-    keys: HashMap<String, Vec<u8>>,
+    keys: HashMap<String, Key>,
 }
 
 impl GroupKeys {
     fn try_new(pk: &UserPassphraseKey, user_data: &UserResponse) -> Result<Self> {
-        let user_key = decrypt_key(pk, user_data.user_group.sym_enc_g_key.as_ref())
-            .context("decrypt user group key")?;
+        let user_key = decrypt_key(
+            *pk.deref(),
+            user_data
+                .user_group
+                .sym_enc_g_key
+                .0
+                .context("user key must be set")?,
+        )
+        .context("decrypt user group key")?;
         let mut group_keys = HashMap::default();
-        group_keys.insert(user_data.user_group.group.clone(), user_key.clone());
+        group_keys.insert(user_data.user_group.group.clone(), user_key);
         for group in &user_data.memberships {
-            group_keys.insert(
-                group.group.clone(),
-                decrypt_key(&user_key, group.sym_enc_g_key.as_ref())
-                    .context("decrypt membership group key")?,
-            );
+            if let Some(enc_g_key) = group.sym_enc_g_key.0 {
+                group_keys.insert(
+                    group.group.clone(),
+                    decrypt_key(user_key, enc_g_key).context("decrypt membership group key")?,
+                );
+            }
         }
 
         Ok(Self { keys: group_keys })
     }
 
-    pub(crate) fn get(&self, group: &str) -> Result<&[u8]> {
+    pub(crate) fn get(&self, group: &str) -> Result<Key> {
         let key = self.keys.get(group).context("group key not found")?;
-        Ok(key)
+        Ok(*key)
     }
 }
 

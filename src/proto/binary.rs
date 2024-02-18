@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use base64::prelude::*;
 use serde::{de::Error, Deserializer, Serializer};
+use std::ops::Deref;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Base64String(Box<[u8]>);
@@ -55,6 +56,14 @@ impl<const N: usize> From<&[u8; N]> for Base64String {
 impl AsRef<[u8]> for Base64String {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+impl Deref for Base64String {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

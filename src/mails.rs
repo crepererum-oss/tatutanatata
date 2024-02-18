@@ -9,7 +9,10 @@ use crate::{
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
     folders::Folder,
-    proto::messages::{MailDetailsBlob, MailReponse},
+    proto::{
+        keys::Key,
+        messages::{MailDetailsBlob, MailReponse},
+    },
     session::{GroupKeys, Session},
 };
 
@@ -20,7 +23,7 @@ pub(crate) struct Mail {
     pub(crate) mail_id: String,
     pub(crate) archive_id: String,
     pub(crate) blob_id: String,
-    pub(crate) session_key: Vec<u8>,
+    pub(crate) session_key: Key,
 }
 
 impl Mail {
@@ -46,7 +49,7 @@ impl Mail {
             group_keys
                 .get(&resp.owner_group)
                 .context("getting owner group key")?,
-            resp.owner_enc_session_key.as_ref(),
+            resp.owner_enc_session_key,
         )
         .context("decrypting session key")?;
 
@@ -71,7 +74,7 @@ impl Mail {
                 .context("download mail details")?;
 
         let body = decrypt_value(
-            &self.session_key,
+            self.session_key,
             mail_details.details.body.compressed_text.as_ref(),
         )
         .context("decrypt body")?;

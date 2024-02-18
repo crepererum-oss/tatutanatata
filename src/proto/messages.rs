@@ -6,6 +6,7 @@ use super::{
     binary::{Base64String, Base64Url},
     constants::Null,
     enums::{GroupType, KdfVersion, MailFolderType},
+    keys::{EncryptedKey, OptionalEncryptedKey},
 };
 
 pub(crate) trait Entity {
@@ -71,7 +72,7 @@ pub(crate) struct SessionServiceResponse {
 pub(crate) struct UserMembership {
     pub(crate) group_type: GroupType,
     pub(crate) group: String,
-    pub(crate) sym_enc_g_key: Base64String,
+    pub(crate) sym_enc_g_key: OptionalEncryptedKey,
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,7 +126,7 @@ pub(crate) struct FolderResponse {
     pub(crate) id: [String; 2],
 
     #[serde(rename = "_ownerEncSessionKey")]
-    pub(crate) owner_enc_session_key: Base64String,
+    pub(crate) owner_enc_session_key: EncryptedKey,
 
     #[serde(rename = "_ownerGroup")]
     pub(crate) owner_group: String,
@@ -148,7 +149,7 @@ pub(crate) struct MailReponse {
     pub(crate) _format: Format<0>,
 
     #[serde(rename = "_ownerEncSessionKey")]
-    pub(crate) owner_enc_session_key: Base64String,
+    pub(crate) owner_enc_session_key: EncryptedKey,
 
     #[serde(rename = "_ownerGroup")]
     pub(crate) owner_group: String,
