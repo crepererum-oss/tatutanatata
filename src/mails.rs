@@ -1,8 +1,7 @@
 use std::{path::Path, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use futures::{Stream, TryStreamExt};
-use reqwest::Method;
 
 use crate::{
     blob::get_blob,
@@ -10,10 +9,7 @@ use crate::{
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
     folders::Folder,
-    proto::{
-        BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest,
-        MailDetailsBlob, MailReponse,
-    },
+    proto::{MailDetailsBlob, MailReponse},
     session::{GroupKeys, Session},
 };
 
@@ -66,7 +62,7 @@ impl Mail {
         &self,
         client: &Client,
         session: &Session,
-        target_file: &Path,
+        _target_file: &Path,
     ) -> Result<()> {
         let mail_details: MailDetailsBlob =
             get_blob(client, session, &self.archive_id, &self.blob_id)
@@ -80,7 +76,7 @@ impl Mail {
         .context("decrypt body")?;
         let body = decompress_value(&body).context("decompress body")?;
         let body = String::from_utf8(body).context("decode body")?;
-        dbg!(body);
+        println!("{}", body);
 
         Ok(())
     }

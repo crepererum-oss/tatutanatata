@@ -1,16 +1,10 @@
-use std::path::Path;
-
 use anyhow::{bail, Context, Result};
-use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 use serde::de::DeserializeOwned;
 
 use crate::{
     client::Client,
-    folders::Folder,
-    proto::{
-        BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest, MailReponse,
-    },
+    proto::{BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest},
     session::Session,
 };
 

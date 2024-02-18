@@ -135,7 +135,7 @@ pub struct GroupKeys {
 
 impl GroupKeys {
     fn try_new(pk: &UserPassphraseKey, user_data: &UserResponse) -> Result<Self> {
-        let user_key = decrypt_key(&pk, user_data.user_group.sym_enc_g_key.as_ref())
+        let user_key = decrypt_key(pk, user_data.user_group.sym_enc_g_key.as_ref())
             .context("decrypt user group key")?;
         let mut group_keys = HashMap::default();
         group_keys.insert(user_data.user_group.group.clone(), user_key.clone());

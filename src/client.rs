@@ -42,8 +42,16 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        self.do_json(method, DEFAULT_HOST, "sys", path, data, access_token, &[])
-            .await
+        self.do_json(Request {
+            method,
+            host: DEFAULT_HOST,
+            prefix: "sys",
+            path,
+            data,
+            access_token,
+            query: &[],
+        })
+        .await
     }
 
     pub async fn service_request_tutanota<Req, Resp>(
@@ -57,15 +65,15 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        self.do_json(
+        self.do_json(Request {
             method,
-            DEFAULT_HOST,
-            "tutanota",
+            host: DEFAULT_HOST,
+            prefix: "tutanota",
             path,
             data,
             access_token,
-            &[],
-        )
+            query: &[],
+        })
         .await
     }
 
@@ -80,15 +88,15 @@ impl Client {
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
-        self.do_json(
+        self.do_json(Request {
             method,
-            DEFAULT_HOST,
-            "storage",
+            host: DEFAULT_HOST,
+            prefix: "storage",
             path,
             data,
             access_token,
-            &[],
-        )
+            query: &[],
+        })
         .await
     }
 
@@ -103,19 +111,19 @@ impl Client {
     where
         Resp: DeserializeOwned,
     {
-        self.do_json(
-            Method::GET,
+        self.do_json(Request {
+            method: Method::GET,
             host,
-            "tutanota",
+            prefix: "tutanota",
             path,
-            &(),
-            None,
-            &[
+            data: &(),
+            access_token: None,
+            query: &[
                 ("accessToken", &access_token.to_string()),
                 ("ids", &ids.join(",")),
                 ("blobAccessToken", blob_access_token),
             ],
-        )
+        })
         .await
     }
 
@@ -129,8 +137,16 @@ impl Client {
     where
         Req: serde::Serialize,
     {
-        self.do_request(method, DEFAULT_HOST, "sys", path, data, access_token, &[])
-            .await
+        self.do_request(Request {
+            method,
+            host: DEFAULT_HOST,
+            prefix: "sys",
+            path,
+            data,
+            access_token,
+            query: &[],
+        })
+        .await
     }
 
     pub fn stream<Resp>(
@@ -166,19 +182,19 @@ impl Client {
                         "fetch new page",
                     );
                     state.buffer = this
-                        .do_json::<(), Vec<Resp>>(
-                            Method::GET,
-                            DEFAULT_HOST,
-                            "tutanota",
-                            &path,
-                            &(),
-                            access_token.as_ref().as_ref(),
-                            &[
+                        .do_json::<(), Vec<Resp>>(Request {
+                            method: Method::GET,
+                            host: DEFAULT_HOST,
+                            prefix: "tutanota",
+                            path: &path,
+                            data: &(),
+                            access_token: access_token.as_ref().as_ref(),
+                            query: &[
                                 ("start", &state.next_start),
                                 ("count", &STREAM_BATCH_SIZE.to_string()),
                                 ("reverse", "false"),
                             ],
-                        )
+                        })
                         .await
                         .context("fetch next page")?
                         .into();
@@ -196,22 +212,13 @@ impl Client {
         })
     }
 
-    async fn do_json<Req, Resp>(
-        &self,
-        method: Method,
-        host: &str,
-        prefix: &str,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-        query: &[(&str, &str)],
-    ) -> Result<Resp>
+    async fn do_json<Req, Resp>(&self, r: Request<'_, Req>) -> Result<Resp>
     where
         Req: serde::Serialize,
         Resp: DeserializeOwned,
     {
         let resp = self
-            .do_request(method, host, prefix, path, data, access_token, query)
+            .do_request(r)
             .await?
             .json::<Resp>()
             .await
@@ -220,19 +227,19 @@ impl Client {
         Ok(resp)
     }
 
-    async fn do_request<Req>(
-        &self,
-        method: Method,
-        host: &str,
-        prefix: &str,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-        query: &[(&str, &str)],
-    ) -> Result<Response>
+    async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
     where
         Req: serde::Serialize,
     {
+        let Request {
+            method,
+            host,
+            prefix,
+            path,
+            data,
+            access_token,
+            query,
+        } = r;
         debug!(%method, prefix, path, "service request",);
 
         let mut req = self
@@ -259,4 +266,17 @@ impl Client {
 struct StreamState<T> {
     buffer: VecDeque<T>,
     next_start: String,
+}
+
+struct Request<'a, Req>
+where
+    Req: serde::Serialize,
+{
+    method: Method,
+    host: &'a str,
+    prefix: &'a str,
+    path: &'a str,
+    data: &'a Req,
+    access_token: Option<&'a Base64Url>,
+    query: &'a [(&'a str, &'a str)],
 }
