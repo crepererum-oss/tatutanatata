@@ -15,7 +15,7 @@ use crate::{
     },
     non_empty_string::NonEmptyString,
     proto::{
-        Base64Url, SaltServiceRequest, SaltServiceResponse, SessionServiceRequest,
+        binary::Base64Url, SaltServiceRequest, SaltServiceResponse, SessionServiceRequest,
         SessionServiceResponse, UserResponse,
     },
 };

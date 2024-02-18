@@ -3,7 +3,7 @@ use std::ops::Deref;
 use anyhow::{bail, Context, Result};
 use sha2::{Digest, Sha256};
 
-use crate::proto::{Base64Url, KdfVersion};
+use crate::proto::{binary::Base64Url, KdfVersion};
 
 #[derive(Debug)]
 pub struct UserPassphraseKey(Box<[u8]>);
