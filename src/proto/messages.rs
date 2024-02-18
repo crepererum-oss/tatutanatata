@@ -145,6 +145,13 @@ impl Entity for FolderResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct MailSender {
+    pub(crate) address: String,
+    pub(crate) name: Base64String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct MailReponse {
     #[serde(rename = "_format")]
     pub(crate) _format: Format<0>,
@@ -162,6 +169,8 @@ pub(crate) struct MailReponse {
 
     pub(crate) received_date: UnixDate,
     pub(crate) subject: Base64String,
+    pub(crate) sender: MailSender,
+    pub(crate) attachments: Vec<[String; 2]>,
 }
 
 impl Entity for MailReponse {
