@@ -2,6 +2,9 @@ use anyhow::{bail, Result};
 use base64::prelude::*;
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
+#[cfg(test)]
+mod testing;
+
 pub trait Entity {
     fn id(&self) -> &str;
 }
@@ -589,6 +592,7 @@ pub struct MailDetailsBlob {
 
 #[cfg(test)]
 mod tests {
+    use super::testing::{assert_deser_error, assert_roundtrip};
     use super::*;
 
     #[test]
@@ -650,24 +654,5 @@ mod tests {
         assert_roundtrip(MailFolderType::Draft);
 
         assert_deser_error::<MailFolderType>(r#""20""#, "invalid mail folder type: 20");
-    }
-
-    #[track_caller]
-    fn assert_roundtrip<T>(orig: T)
-    where
-        T: Eq + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
-    {
-        let s = serde_json::to_string(&orig).expect("serialize");
-        let recovered = serde_json::from_str(&s).expect("deserialize");
-        assert_eq!(orig, recovered);
-    }
-
-    #[track_caller]
-    fn assert_deser_error<T>(s: &str, expected: &str)
-    where
-        T: std::fmt::Debug + serde::de::DeserializeOwned,
-    {
-        let err = serde_json::from_str::<T>(s).expect_err("deserialize error");
-        assert_eq!(err.to_string(), expected);
     }
 }
