@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     client::Client,
+    file_output::escape_file_string,
     mails::Mail,
     session::{LoginCLIConfig, Session},
 };
@@ -23,6 +24,7 @@ mod client;
 mod compression;
 mod constants;
 mod crypto;
+mod file_output;
 mod folders;
 mod logging;
 mod mails;
@@ -125,7 +127,12 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
             let mails = Mail::list(client, session, &folder);
             let mut mails = std::pin::pin!(mails);
             while let Some(mail) = mails.try_next().await.context("list mails")? {
-                let target_file = cfg.path.join(&mail.mail_id).with_extension(".eml");
+                let target_file = cfg.path.join(format!(
+                    "{}-{}.eml",
+                    mail.date.format("%Y-%m-%d-%Hh%Mm%Ss"),
+                    escape_file_string(&mail.subject),
+                ));
+
                 if tokio::fs::try_exists(&target_file)
                     .await
                     .context("check file existence")?

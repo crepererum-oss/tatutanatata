@@ -5,6 +5,7 @@ use crate::proto::constants::Format;
 use super::{
     binary::{Base64String, Base64Url},
     constants::Null,
+    date::UnixDate,
     enums::{GroupType, KdfVersion, MailFolderType},
     keys::{EncryptedKey, OptionalEncryptedKey},
 };
@@ -158,6 +159,9 @@ pub(crate) struct MailReponse {
     pub(crate) id: [String; 2],
 
     pub(crate) mail_details: [String; 2],
+
+    pub(crate) received_date: UnixDate,
+    pub(crate) subject: Base64String,
 }
 
 impl Entity for MailReponse {
@@ -218,8 +222,19 @@ pub(crate) struct MailBody {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct MailHeaders {
+    pub(crate) compressed_headers: Base64String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct MailDetails {
     pub(crate) body: MailBody,
+
+    /// Mail headers.
+    ///
+    /// These only appear for true emails, not for internal messages.
+    pub(crate) headers: Option<MailHeaders>,
 }
 
 #[derive(Debug, Deserialize)]
