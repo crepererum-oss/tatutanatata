@@ -8,7 +8,7 @@ use crate::{
     session::Session,
 };
 
-pub async fn get_blob<Resp>(
+pub(crate) async fn get_blob<Resp>(
     client: &Client,
     session: &Session,
     archive_id: &str,

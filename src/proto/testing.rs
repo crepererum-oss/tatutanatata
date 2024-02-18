@@ -1,5 +1,5 @@
 #[track_caller]
-pub fn assert_roundtrip<T>(orig: T)
+pub(crate) fn assert_roundtrip<T>(orig: T)
 where
     T: Eq + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
 {
@@ -9,7 +9,7 @@ where
 }
 
 #[track_caller]
-pub fn assert_deser_error<T>(s: &str, expected: &str)
+pub(crate) fn assert_deser_error<T>(s: &str, expected: &str)
 where
     T: std::fmt::Debug + serde::de::DeserializeOwned,
 {
@@ -28,7 +28,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed")]
+    #[should_panic(expected = "assertion")]
     fn test_assert_roundtrip_fail() {
         assert_roundtrip(Helper(100));
     }

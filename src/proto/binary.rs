@@ -3,15 +3,15 @@ use base64::prelude::*;
 use serde::{de::Error, Deserializer, Serializer};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Base64String(Box<[u8]>);
+pub(crate) struct Base64String(Box<[u8]>);
 
 impl Base64String {
-    pub fn try_new(s: &str) -> Result<Self> {
+    pub(crate) fn try_new(s: &str) -> Result<Self> {
         let data = BASE64_STANDARD.decode(s)?;
         Ok(Self(data.into()))
     }
 
-    pub fn base64(&self) -> String {
+    pub(crate) fn base64(&self) -> String {
         BASE64_STANDARD.encode(self.0.as_ref())
     }
 }
@@ -78,10 +78,10 @@ impl<'de> serde::Deserialize<'de> for Base64String {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Base64Url(Base64String);
+pub(crate) struct Base64Url(Base64String);
 
 impl Base64Url {
-    pub fn try_new(s: &str) -> Result<Self> {
+    pub(crate) fn try_new(s: &str) -> Result<Self> {
         let mut s = s.replace('-', "+").replace('_', "/");
         match s.len() % 4 {
             0 => {}
@@ -98,7 +98,7 @@ impl Base64Url {
         Ok(Self(Base64String::try_new(&s)?))
     }
 
-    pub fn url(&self) -> String {
+    pub(crate) fn url(&self) -> String {
         self.0
             .base64()
             .replace('+', "-")

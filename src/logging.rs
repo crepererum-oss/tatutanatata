@@ -8,7 +8,7 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 /// Logging CLI config.
 #[derive(Debug, Parser)]
-pub struct LoggingCLIConfig {
+pub(crate) struct LoggingCLIConfig {
     /// Log filter.
     ///
     /// Conflicts with `-v`/`--verbose`.
@@ -30,7 +30,7 @@ pub struct LoggingCLIConfig {
 }
 
 /// Setup process-wide logging.
-pub fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
+pub(crate) fn setup_logging(config: LoggingCLIConfig) -> Result<()> {
     LogTracer::init()?;
 
     let filter = match config.log_filter {

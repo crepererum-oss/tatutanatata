@@ -19,16 +19,16 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Folder {
-    pub name: String,
-    pub mails: String,
+pub(crate) struct Folder {
+    pub(crate) name: String,
+    pub(crate) mails: String,
 }
 
 impl Folder {
-    pub async fn list(
+    pub(crate) async fn list(
         client: &Client,
         session: &Session,
-    ) -> Result<impl Stream<Item = Result<Folder>>> {
+    ) -> Result<impl Stream<Item = Result<Self>>> {
         let mail_group = get_mail_membership(session).context("get mail group")?;
 
         let resp: MailboxGroupRootResponse = client
@@ -89,7 +89,7 @@ impl Folder {
             resp.folder_type.name().to_owned()
         };
 
-        Ok(Folder {
+        Ok(Self {
             name,
             mails: resp.mails,
         })

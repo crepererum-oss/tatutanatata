@@ -17,7 +17,6 @@ hmac = "0.12.1"
 lz4_flex = "0.11.2"
 reqwest = { version = "0.11", default-features = false, features = ["brotli", "deflate", "gzip", "json", "rustls-tls-webpki-roots", "trust-dns"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 sha2 = "0.10.8"
 tokio = { version = "1.32.0", features = ["fs", "macros", "rt-multi-thread"] }
 tracing = "0.1.38"
@@ -27,7 +26,26 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 [dev-dependencies]
 assert_cmd = "2.0.12"
 insta = "1.34.0"
-predicates = { version = "3.0.4", default-features = false }
+serde_json = "1.0"
+
+[lints.rust]
+missing_copy_implementations = "deny"
+missing_debug_implementations = "deny"
+rust_2018_idioms = "deny"
+unreachable_pub = "deny"
+unused_crate_dependencies = "deny"
+
+[lints.clippy]
+clone_on_ref_ptr = "deny"
+dbg_macro = "deny"
+explicit_iter_loop = "deny"
+future_not_send = "deny"
+todo = "deny"
+use_self = "deny"
+
+[lints.rustdoc]
+bare_urls = "deny"
+broken_intra_doc_links = "deny"
 
 [profile.dev.package]
 insta.opt-level = 3

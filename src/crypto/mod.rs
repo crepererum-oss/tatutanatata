@@ -1,4 +1,4 @@
 //! Crypto methods.
 
-pub mod auth;
-pub mod encryption;
+pub(crate) mod auth;
+pub(crate) mod encryption;

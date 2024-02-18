@@ -2,7 +2,7 @@ use std::{ops::Deref, str::FromStr};
 
 /// Non-empty [`String`].
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub struct NonEmptyString(String);
+pub(crate) struct NonEmptyString(String);
 
 impl std::fmt::Debug for NonEmptyString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {

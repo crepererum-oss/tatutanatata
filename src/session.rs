@@ -22,7 +22,7 @@ use crate::{
 
 /// Login CLI config.
 #[derive(Debug, Parser)]
-pub struct LoginCLIConfig {
+pub(crate) struct LoginCLIConfig {
     /// Username
     #[clap(long, env = "TUTANOTA_CLI_USERNAME")]
     username: NonEmptyString,
@@ -34,16 +34,17 @@ pub struct LoginCLIConfig {
 
 /// User session
 #[derive(Debug)]
-pub struct Session {
-    pub user_id: String,
-    pub access_token: Base64Url,
-    pub group_keys: Arc<GroupKeys>,
-    pub user_data: UserResponse,
+pub(crate) struct Session {
+    #[allow(dead_code)]
+    pub(crate) user_id: String,
+    pub(crate) access_token: Base64Url,
+    pub(crate) group_keys: Arc<GroupKeys>,
+    pub(crate) user_data: UserResponse,
 }
 
 impl Session {
     /// Perform tutanota login.
-    pub async fn login(config: LoginCLIConfig, client: &Client) -> Result<Self> {
+    pub(crate) async fn login(config: LoginCLIConfig, client: &Client) -> Result<Self> {
         debug!("perform login");
 
         let req = SaltServiceRequest {
@@ -103,7 +104,7 @@ impl Session {
         })
     }
 
-    pub async fn logout(self, client: &Client) -> Result<()> {
+    pub(crate) async fn logout(self, client: &Client) -> Result<()> {
         let session = &self.user_data.auth.sessions;
 
         debug!(session = session.as_str(), "performing logout",);
@@ -129,7 +130,7 @@ impl Session {
 }
 
 #[derive(Debug)]
-pub struct GroupKeys {
+pub(crate) struct GroupKeys {
     keys: HashMap<String, Vec<u8>>,
 }
 
@@ -150,7 +151,7 @@ impl GroupKeys {
         Ok(Self { keys: group_keys })
     }
 
-    pub fn get(&self, group: &str) -> Result<&[u8]> {
+    pub(crate) fn get(&self, group: &str) -> Result<&[u8]> {
         let key = self.keys.get(group).context("group key not found")?;
         Ok(key)
     }

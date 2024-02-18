@@ -12,6 +12,12 @@ use futures::TryStreamExt;
 use logging::{setup_logging, LoggingCLIConfig};
 use tracing::{debug, info};
 
+// Workaround for "unused crate" lint false positives.
+#[cfg(test)]
+use assert_cmd as _;
+#[cfg(test)]
+use insta as _;
+
 mod blob;
 mod client;
 mod compression;

@@ -15,12 +15,12 @@ const STREAM_BATCH_SIZE: u64 = 1000;
 const DEFAULT_HOST: &str = "https://app.tuta.com";
 
 #[derive(Debug, Clone)]
-pub struct Client {
+pub(crate) struct Client {
     inner: reqwest::Client,
 }
 
 impl Client {
-    pub fn try_new() -> Result<Self> {
+    pub(crate) fn try_new() -> Result<Self> {
         let inner = reqwest::Client::builder()
             .min_tls_version(reqwest::tls::Version::TLS_1_3)
             .http2_prior_knowledge()
@@ -31,7 +31,7 @@ impl Client {
         Ok(Self { inner })
     }
 
-    pub async fn service_request<Req, Resp>(
+    pub(crate) async fn service_request<Req, Resp>(
         &self,
         method: Method,
         path: &str,
@@ -39,7 +39,7 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> Result<Resp>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
         self.do_json(Request {
@@ -54,7 +54,7 @@ impl Client {
         .await
     }
 
-    pub async fn service_request_tutanota<Req, Resp>(
+    pub(crate) async fn service_request_tutanota<Req, Resp>(
         &self,
         method: Method,
         path: &str,
@@ -62,7 +62,7 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> Result<Resp>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
         self.do_json(Request {
@@ -77,7 +77,7 @@ impl Client {
         .await
     }
 
-    pub async fn service_request_storage<Req, Resp>(
+    pub(crate) async fn service_request_storage<Req, Resp>(
         &self,
         method: Method,
         path: &str,
@@ -85,7 +85,7 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> Result<Resp>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
         self.do_json(Request {
@@ -100,7 +100,7 @@ impl Client {
         .await
     }
 
-    pub async fn blob_request<Resp>(
+    pub(crate) async fn blob_request<Resp>(
         &self,
         host: &str,
         path: &str,
@@ -127,7 +127,7 @@ impl Client {
         .await
     }
 
-    pub async fn service_request_no_response<Req>(
+    pub(crate) async fn service_request_no_response<Req>(
         &self,
         method: Method,
         path: &str,
@@ -135,7 +135,7 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> Result<Response>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
     {
         self.do_request(Request {
             method,
@@ -149,7 +149,7 @@ impl Client {
         .await
     }
 
-    pub fn stream<Resp>(
+    pub(crate) fn stream<Resp>(
         &self,
         path: &str,
         access_token: Option<&Base64Url>,
@@ -214,7 +214,7 @@ impl Client {
 
     async fn do_json<Req, Resp>(&self, r: Request<'_, Req>) -> Result<Resp>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
         let resp = self
@@ -229,7 +229,7 @@ impl Client {
 
     async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
     where
-        Req: serde::Serialize,
+        Req: serde::Serialize + Sync,
     {
         let Request {
             method,
@@ -270,7 +270,7 @@ struct StreamState<T> {
 
 struct Request<'a, Req>
 where
-    Req: serde::Serialize,
+    Req: serde::Serialize + Sync,
 {
     method: Method,
     host: &'a str,

@@ -3,17 +3,17 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 use self::binary::{Base64String, Base64Url};
 
-pub mod binary;
+pub(crate) mod binary;
 
 #[cfg(test)]
 mod testing;
 
-pub trait Entity {
+pub(crate) trait Entity {
     fn id(&self) -> &str;
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Format<const F: u8>;
+pub(crate) struct Format<const F: u8>;
 
 impl<const F: u8> serde::Serialize for Format<F> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -40,7 +40,7 @@ impl<'de, const F: u8> serde::Deserialize<'de> for Format<F> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum KdfVersion {
+pub(crate) enum KdfVersion {
     Bcrypt,
     Argon2id,
 }
@@ -73,7 +73,7 @@ impl<'de> serde::Deserialize<'de> for KdfVersion {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Null;
+pub(crate) struct Null;
 
 impl serde::Serialize for Null {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -85,7 +85,7 @@ impl serde::Serialize for Null {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum GroupType {
+pub(crate) enum GroupType {
     User,
     Admin,
     MailingList,
@@ -148,7 +148,7 @@ impl<'de> serde::Deserialize<'de> for GroupType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MailFolderType {
+pub(crate) enum MailFolderType {
     Custom,
     Inbox,
     Sent,
@@ -159,7 +159,7 @@ pub enum MailFolderType {
 }
 
 impl MailFolderType {
-    pub fn name(&self) -> &'static str {
+    pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Custom => "Custom",
             Self::Inbox => "Inbox",
@@ -211,125 +211,125 @@ impl<'de> serde::Deserialize<'de> for MailFolderType {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SaltServiceRequest {
+pub(crate) struct SaltServiceRequest {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) format: Format<0>,
 
-    pub mail_address: String,
+    pub(crate) mail_address: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SaltServiceResponse {
+pub(crate) struct SaltServiceResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub kdf_version: KdfVersion,
+    pub(crate) kdf_version: KdfVersion,
 
-    pub salt: Base64String,
+    pub(crate) salt: Base64String,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SessionServiceRequest {
+pub(crate) struct SessionServiceRequest {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) format: Format<0>,
 
-    pub access_key: Null,
+    pub(crate) access_key: Null,
 
-    pub auth_token: Null,
+    pub(crate) auth_token: Null,
 
-    pub auth_verifier: Base64Url,
+    pub(crate) auth_verifier: Base64Url,
 
-    pub client_identifier: String,
+    pub(crate) client_identifier: String,
 
-    pub mail_address: String,
+    pub(crate) mail_address: String,
 
-    pub recover_code_verifier: Null,
+    pub(crate) recover_code_verifier: Null,
 
-    pub user: Null,
+    pub(crate) user: Null,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SessionServiceResponse {
+pub(crate) struct SessionServiceResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub access_token: Base64Url,
+    pub(crate) access_token: Base64Url,
 
-    pub challenges: Vec<String>,
+    pub(crate) challenges: Vec<String>,
 
-    pub user: String,
+    pub(crate) user: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserMembership {
-    pub group_type: GroupType,
-    pub group: String,
-    pub sym_enc_g_key: Base64String,
+pub(crate) struct UserMembership {
+    pub(crate) group_type: GroupType,
+    pub(crate) group: String,
+    pub(crate) sym_enc_g_key: Base64String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserAuth {
-    pub sessions: String,
+pub(crate) struct UserAuth {
+    pub(crate) sessions: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UserResponse {
+pub(crate) struct UserResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub memberships: Vec<UserMembership>,
-    pub auth: UserAuth,
-    pub user_group: UserMembership,
+    pub(crate) memberships: Vec<UserMembership>,
+    pub(crate) auth: UserAuth,
+    pub(crate) user_group: UserMembership,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailboxGroupRootResponse {
+pub(crate) struct MailboxGroupRootResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub mailbox: String,
+    pub(crate) mailbox: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Folders {
-    pub folders: String,
+pub(crate) struct Folders {
+    pub(crate) folders: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailboxResponse {
+pub(crate) struct MailboxResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub folders: Folders,
+    pub(crate) folders: Folders,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FolderResponse {
+pub(crate) struct FolderResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
     #[serde(rename = "_id")]
-    pub id: [String; 2],
+    pub(crate) id: [String; 2],
 
     #[serde(rename = "_ownerEncSessionKey")]
-    pub owner_enc_session_key: Base64String,
+    pub(crate) owner_enc_session_key: Base64String,
 
     #[serde(rename = "_ownerGroup")]
-    pub owner_group: String,
+    pub(crate) owner_group: String,
 
-    pub folder_type: MailFolderType,
-    pub name: Base64String,
-    pub mails: String,
+    pub(crate) folder_type: MailFolderType,
+    pub(crate) name: Base64String,
+    pub(crate) mails: String,
 }
 
 impl Entity for FolderResponse {
@@ -340,20 +340,20 @@ impl Entity for FolderResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailReponse {
+pub(crate) struct MailReponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
     #[serde(rename = "_ownerEncSessionKey")]
-    pub owner_enc_session_key: Base64String,
+    pub(crate) owner_enc_session_key: Base64String,
 
     #[serde(rename = "_ownerGroup")]
-    pub owner_group: String,
+    pub(crate) owner_group: String,
 
     #[serde(rename = "_id")]
-    pub id: [String; 2],
+    pub(crate) id: [String; 2],
 
-    pub mail_details: [String; 2],
+    pub(crate) mail_details: [String; 2],
 }
 
 impl Entity for MailReponse {
@@ -364,67 +364,67 @@ impl Entity for MailReponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlobReadRequest {
+pub(crate) struct BlobReadRequest {
     #[serde(rename = "_id")]
-    pub id: String,
+    pub(crate) id: String,
 
-    pub archive_id: String,
-    pub instance_ids: Vec<()>,
-    pub instance_list_id: Null,
+    pub(crate) archive_id: String,
+    pub(crate) instance_ids: Vec<()>,
+    pub(crate) instance_list_id: Null,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlobAccessTokenServiceRequest {
+pub(crate) struct BlobAccessTokenServiceRequest {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) format: Format<0>,
 
-    pub archive_data_type: Null,
-    pub read: BlobReadRequest,
-    pub write: Null,
+    pub(crate) archive_data_type: Null,
+    pub(crate) read: BlobReadRequest,
+    pub(crate) write: Null,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlobServer {
-    pub url: String,
+pub(crate) struct BlobServer {
+    pub(crate) url: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlobAccessInfo {
-    pub blob_access_token: String,
-    pub servers: Vec<BlobServer>,
+pub(crate) struct BlobAccessInfo {
+    pub(crate) blob_access_token: String,
+    pub(crate) servers: Vec<BlobServer>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlobAccessTokenServiceResponse {
+pub(crate) struct BlobAccessTokenServiceResponse {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub blob_access_info: BlobAccessInfo,
+    pub(crate) blob_access_info: BlobAccessInfo,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailBody {
-    pub compressed_text: Base64String,
+pub(crate) struct MailBody {
+    pub(crate) compressed_text: Base64String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailDetails {
-    pub body: MailBody,
+pub(crate) struct MailDetails {
+    pub(crate) body: MailBody,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MailDetailsBlob {
+pub(crate) struct MailDetailsBlob {
     #[serde(rename = "_format")]
-    pub format: Format<0>,
+    pub(crate) _format: Format<0>,
 
-    pub details: MailDetails,
+    pub(crate) details: MailDetails,
 }
 
 #[cfg(test)]

@@ -14,20 +14,21 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Mail {
-    pub folder_id: String,
-    pub mail_id: String,
-    pub archive_id: String,
-    pub blob_id: String,
-    pub session_key: Vec<u8>,
+pub(crate) struct Mail {
+    #[allow(dead_code)]
+    pub(crate) folder_id: String,
+    pub(crate) mail_id: String,
+    pub(crate) archive_id: String,
+    pub(crate) blob_id: String,
+    pub(crate) session_key: Vec<u8>,
 }
 
 impl Mail {
-    pub fn list(
+    pub(crate) fn list(
         client: &Client,
         session: &Session,
         folder: &Folder,
-    ) -> impl Stream<Item = Result<Mail>> {
+    ) -> impl Stream<Item = Result<Self>> {
         let group_keys = Arc::clone(&session.group_keys);
         client
             .stream::<MailReponse>(
@@ -49,7 +50,7 @@ impl Mail {
         )
         .context("decrypting session key")?;
 
-        Ok(Mail {
+        Ok(Self {
             folder_id: resp.id[0].clone(),
             mail_id: resp.id[1].clone(),
             archive_id: resp.mail_details[0].clone(),
@@ -58,7 +59,7 @@ impl Mail {
         })
     }
 
-    pub async fn download(
+    pub(crate) async fn download(
         &self,
         client: &Client,
         session: &Session,

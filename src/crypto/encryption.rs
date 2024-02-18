@@ -10,7 +10,7 @@ type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
-pub fn decrypt_key(encryption_key: &[u8], key_to_be_decrypted: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn decrypt_key(encryption_key: &[u8], key_to_be_decrypted: &[u8]) -> Result<Vec<u8>> {
     if let Ok(k) = TryInto::<[u8; 16]>::try_into(encryption_key) {
         let iv: [u8; 16] = [128u8 + 8; 16];
         Aes128CbcDec::new(&k.into(), &iv.into())
@@ -24,7 +24,7 @@ pub fn decrypt_key(encryption_key: &[u8], key_to_be_decrypted: &[u8]) -> Result<
     }
 }
 
-pub fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn decrypt_value(encryption_key: &[u8], value: &[u8]) -> Result<Vec<u8>> {
     if let Ok(k) = TryInto::<[u8; 16]>::try_into(encryption_key) {
         let (k, value) = if value.len() % 2 == 1 {
             // use mac

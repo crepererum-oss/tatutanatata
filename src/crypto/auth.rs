@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use crate::proto::{binary::Base64Url, KdfVersion};
 
 #[derive(Debug)]
-pub struct UserPassphraseKey(Box<[u8]>);
+pub(crate) struct UserPassphraseKey(Box<[u8]>);
 
 impl AsRef<[u8]> for UserPassphraseKey {
     fn as_ref(&self) -> &[u8] {
@@ -22,7 +22,7 @@ impl Deref for UserPassphraseKey {
     }
 }
 
-pub fn derive_passkey(
+pub(crate) fn derive_passkey(
     kdf_version: KdfVersion,
     passphrase: &str,
     salt: &[u8],
@@ -43,7 +43,7 @@ pub fn derive_passkey(
     }
 }
 
-pub fn encode_auth_verifier(passkey: &UserPassphraseKey) -> Base64Url {
+pub(crate) fn encode_auth_verifier(passkey: &UserPassphraseKey) -> Base64Url {
     let mut hasher = Sha256::new();
     hasher.update(&passkey.0);
     let hashed = hasher.finalize().to_vec();
