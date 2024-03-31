@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 aes = "0.8.3"
-anyhow = "1.0.75"
+anyhow = "1.0.81"
 base64 = "0.21.7"
 bcrypt = "0.15.0"
 cbc = { version = "0.1.2", features = ["alloc"] }
