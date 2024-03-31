@@ -1654,7 +1654,7 @@ dependencies = [
  "aes",
  "anyhow",
  "assert_cmd",
- "base64 0.21.7",
+ "base64 0.22.0",
  "bcrypt",
  "cbc",
  "chrono",
