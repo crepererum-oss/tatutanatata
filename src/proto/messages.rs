@@ -254,3 +254,28 @@ pub(crate) struct MailDetailsBlob {
 
     pub(crate) details: MailDetails,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FileBlob {
+    pub(crate) archive_id: String,
+    pub(crate) blob_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FileReponse {
+    #[serde(rename = "_format")]
+    pub(crate) _format: Format<0>,
+
+    #[serde(rename = "_ownerEncSessionKey")]
+    pub(crate) owner_enc_session_key: EncryptedKey,
+
+    #[serde(rename = "_ownerGroup")]
+    pub(crate) owner_group: String,
+
+    pub(crate) cid: Base64String,
+    pub(crate) mime_type: Base64String,
+    pub(crate) name: Base64String,
+    pub(crate) blobs: [FileBlob; 1],
+}

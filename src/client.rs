@@ -100,7 +100,28 @@ impl Client {
         .await
     }
 
-    pub(crate) async fn blob_request<Resp>(
+    pub(crate) async fn file_request<Resp>(
+        &self,
+        access_token: &Base64Url,
+        group_id: &str,
+        ids: &[&str],
+    ) -> Result<Resp>
+    where
+        Resp: DeserializeOwned,
+    {
+        self.do_json(Request {
+            method: Method::GET,
+            host: DEFAULT_HOST,
+            prefix: "tutanota",
+            path: &format!("file/{group_id}"),
+            data: &(),
+            access_token: Some(access_token),
+            query: &[("ids", &ids.join(","))],
+        })
+        .await
+    }
+
+    pub(crate) async fn mail_blob_request<Resp>(
         &self,
         host: &str,
         path: &str,

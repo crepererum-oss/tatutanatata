@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     client::Client,
-    file_output::escape_file_string,
+    eml::emit_eml,
+    file_output::{escape_file_string, write_to_file},
     mails::Mail,
     session::{LoginCLIConfig, Session},
 };
@@ -24,6 +25,7 @@ mod client;
 mod compression;
 mod constants;
 mod crypto;
+mod eml;
 mod file_output;
 mod folders;
 mod logging;
@@ -140,9 +142,14 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                     info!(id = mail.mail_id.as_str(), "already exists");
                 } else {
                     info!(id = mail.mail_id.as_str(), "download");
-                    mail.download(client, session, &target_file)
+                    let mail = mail
+                        .download(client, session)
                         .await
                         .context("download mail")?;
+                    let eml = emit_eml(&mail).context("emit eml")?;
+                    write_to_file(eml.as_bytes(), &target_file)
+                        .await
+                        .context("write output file")?;
                 }
             }
 

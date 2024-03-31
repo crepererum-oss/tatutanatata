@@ -1,24 +1,18 @@
-use std::{
-    path::Path,
-    sync::{Arc, OnceLock},
-};
+use std::sync::{Arc, OnceLock};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use chrono::NaiveDateTime;
 use futures::{Stream, TryStreamExt};
-use itertools::Itertools;
 
 use crate::{
-    blob::get_blob,
+    blob::get_mail_blob,
     client::Client,
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
-    file_output::write_to_file,
     folders::Folder,
     proto::{
-        binary::Base64String,
         keys::Key,
-        messages::{MailDetailsBlob, MailReponse},
+        messages::{FileReponse, MailReponse},
     },
     session::{GroupKeys, Session},
 };
@@ -91,156 +85,97 @@ impl Mail {
     }
 
     pub(crate) async fn download(
-        &self,
+        self,
         client: &Client,
         session: &Session,
-        target_file: &Path,
-    ) -> Result<()> {
-        let mail_details: MailDetailsBlob =
-            get_blob(client, session, &self.archive_id, &self.blob_id)
-                .await
-                .context("download mail details")?;
-
-        self.emit_eml(mail_details, target_file)
+    ) -> Result<DownloadedMail> {
+        let mail_details = get_mail_blob(client, session, &self.archive_id, &self.blob_id)
             .await
-            .context("emit EML")
-    }
-
-    async fn emit_eml(&self, mail_details: MailDetailsBlob, target_file: &Path) -> Result<()> {
-        let mut out = Vec::new();
-
-        let boundary = if let Some(headers) = mail_details.details.headers {
-            let headers = decrypt_value(self.session_key, headers.compressed_headers.as_ref())
-                .context("decrypt headers")?;
-            let headers = decompress_value(&headers).context("decompress headers")?;
-            let mut headers = fix_header_line_endings(&headers);
-            let boundary = get_boundary(&headers).context("get boundary")?;
-
-            out.append(&mut headers);
-            boundary
-        } else {
-            self.synthesize_headers(&mut out)
-        };
-
-        write_intermediate_delimiter(&mut out, &boundary);
-
+            .context("download mail details")?;
         let body = decrypt_value(
             self.session_key,
             mail_details.details.body.compressed_text.as_ref(),
         )
         .context("decrypt body")?;
         let body = decompress_value(&body).context("decompress body")?;
-        let body = Base64String::from(body);
-        out.extend(b"Content-Type: text/html; charset=UTF-8");
-        out.extend(NEWLINE);
-        out.extend(b"Content-Transfer-Encoding: base64");
-        out.extend(NEWLINE);
-        out.extend(NEWLINE);
-        write_chunked(&mut out, body.to_string().as_bytes());
 
-        write_final_delimiter(&mut out, &boundary);
+        let headers = if let Some(headers) = mail_details.details.headers {
+            let headers = decrypt_value(self.session_key, headers.compressed_headers.as_ref())
+                .context("decrypt headers")?;
+            let headers = decompress_value(&headers).context("decompress headers")?;
+            let headers = String::from_utf8(headers).context("decode headers")?;
 
-        write_to_file(&out, target_file)
-            .await
-            .context("write to output file")?;
-
-        Ok(())
-    }
-
-    /// Create headers from metadata and return multipart boundary.
-    fn synthesize_headers(&self, out: &mut Vec<u8>) -> Vec<u8> {
-        let boundary = b"----------79Bu5A16qPEYcVIZL@tutanota".to_vec();
-
-        out.extend(b"From: ");
-        out.extend(self.sender_name.as_bytes());
-        out.extend(b" <");
-        out.extend(self.sender_mail.as_bytes());
-        out.extend(b">");
-        out.extend(NEWLINE);
-
-        out.extend(b"MIME-Version: 1.0");
-        out.extend(NEWLINE);
-
-        if self.subject.is_empty() {
-            out.extend(b"Subject: ");
-            out.extend(NEWLINE);
+            Some(headers)
         } else {
-            out.extend(b"Subject: =?UTF-8?B?");
-            out.extend(
-                Base64String::from(self.subject.as_bytes())
-                    .to_string()
-                    .as_bytes(),
-            );
-            out.extend(b"?=");
+            None
         };
 
-        out.extend(b"Content-Type: multipart/related; boundary=\"");
-        out.extend(&boundary);
-        out.extend(b"\"");
-        out.extend(NEWLINE);
+        let mut attachements = vec![];
+        if !self.attachments.is_empty() {
+            let group = &self.attachments[0][0];
+            if self.attachments.iter().any(|[g_id, _id]| g_id != group) {
+                bail!("inconsistent attachement group IDs")
+            }
+            let ids = self
+                .attachments
+                .iter()
+                .map(|[_g_id, id]| id.as_str())
+                .collect::<Vec<_>>();
+            let files: Vec<FileReponse> = client
+                .file_request(&session.access_token, group, &ids)
+                .await
+                .context("get file infos")?;
 
-        boundary
-    }
-}
+            for file in files {
+                let session_key = decrypt_key(
+                    session
+                        .group_keys
+                        .get(&file.owner_group)
+                        .context("getting file owner group key")?,
+                    file.owner_enc_session_key,
+                )
+                .context("decrypting file session key")?;
 
-fn line_ending_re() -> &'static regex::bytes::Regex {
-    LINE_ENDING_RE.get_or_init(|| regex::bytes::Regex::new(r#"\r?\n"#).expect("valid regex"))
-}
+                let cid = decrypt_value(session_key, file.cid.as_ref())
+                    .context("decrypt file content ID")?;
+                let cid = String::from_utf8(cid).context("decode cid")?;
 
-fn boundary_re() -> &'static regex::bytes::Regex {
-    BOUNDARY_RE.get_or_init(|| {
-        regex::bytes::Regex::new(r#"Content-Type: .*boundary="(?<boundary>[^"]*)""#)
-            .expect("valid regex")
-    })
-}
+                let mime_type = decrypt_value(session_key, file.mime_type.as_ref())
+                    .context("decrypt file mime type")?;
+                let mime_type = String::from_utf8(mime_type).context("decode mime_type")?;
 
-/// Upstream provides `\n` line endings for headers but we need `\r\n`
-#[allow(unstable_name_collisions)]
-fn fix_header_line_endings(headers: &[u8]) -> Vec<u8> {
-    line_ending_re()
-        .split(headers)
-        .map(|s| s.to_vec())
-        .intersperse(b"\r\n".to_vec())
-        .concat()
-}
+                let name =
+                    decrypt_value(session_key, file.name.as_ref()).context("decrypt file name")?;
+                let name = String::from_utf8(name).context("decode name")?;
 
-/// Extract boundery from headers
-fn get_boundary(headers: &[u8]) -> Result<Vec<u8>> {
-    let boundary_re = boundary_re();
-
-    line_ending_re()
-        .split(headers)
-        .find_map(|line| boundary_re.captures(line).and_then(|c| c.name("boundary")))
-        .map(|s| s.as_bytes().to_owned())
-        .context("boundary not found")
-}
-
-/// See <https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html>.
-fn write_delimiter(out: &mut Vec<u8>, boundary: &[u8]) {
-    out.extend(NEWLINE);
-    out.extend(NEWLINE);
-    out.extend(b"--");
-    out.extend(boundary);
-}
-
-fn write_intermediate_delimiter(out: &mut Vec<u8>, boundary: &[u8]) {
-    write_delimiter(out, boundary);
-    out.extend(NEWLINE);
-}
-
-/// See <https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html>.
-fn write_final_delimiter(out: &mut Vec<u8>, boundary: &[u8]) {
-    write_delimiter(out, boundary);
-    out.extend(b"--");
-}
-
-fn write_chunked(out: &mut Vec<u8>, s: &[u8]) {
-    let mut first = false;
-    for chunk in s.chunks(78) {
-        if !first {
-            out.extend(NEWLINE);
+                attachements.push(Attachment {
+                    cid,
+                    mime_type,
+                    name,
+                });
+            }
         }
-        out.extend(chunk);
-        first = false;
+
+        Ok(DownloadedMail {
+            mail: self,
+            headers,
+            body,
+            attachements,
+        })
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct DownloadedMail {
+    pub(crate) mail: Mail,
+    pub(crate) headers: Option<String>,
+    pub(crate) body: Vec<u8>,
+    pub(crate) attachements: Vec<Attachment>,
+}
+
+#[derive(Debug)]
+pub(crate) struct Attachment {
+    pub(crate) cid: String,
+    pub(crate) mime_type: String,
+    pub(crate) name: String,
 }
