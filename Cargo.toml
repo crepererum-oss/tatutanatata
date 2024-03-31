@@ -10,7 +10,7 @@ anyhow = "1.0.81"
 base64 = "0.21.7"
 bcrypt = "0.15.1"
 cbc = { version = "0.1.2", features = ["alloc"] }
-chrono = "0.4.34"
+chrono = "0.4.37"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3.28"
