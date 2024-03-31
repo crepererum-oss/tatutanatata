@@ -1,8 +1,8 @@
 use std::{ops::Deref, str::FromStr};
 
 /// Non-empty [`String`].
-#[derive(Clone)]
-pub struct NonEmptyString(String);
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(crate) struct NonEmptyString(String);
 
 impl std::fmt::Debug for NonEmptyString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -39,5 +39,25 @@ impl FromStr for NonEmptyString {
         } else {
             Ok(Self(s.to_owned()))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_roundtrip() {
+        let non_empty = NonEmptyString::from_str("foo").unwrap();
+        assert_eq!(non_empty.as_ref(), "foo");
+        assert_eq!(non_empty.deref(), "foo");
+        assert_eq!(format!("{}", non_empty), "foo");
+        assert_eq!(format!("{:?}", non_empty), r#""foo""#);
+    }
+
+    #[test]
+    fn test_failure() {
+        let err = NonEmptyString::from_str("").unwrap_err();
+        assert_eq!(err.to_string(), "cannot be empty");
     }
 }

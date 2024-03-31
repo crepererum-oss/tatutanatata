@@ -1,10 +1,12 @@
-use std::sync::{LockResult, Mutex, MutexGuard};
+#![allow(unused_crate_dependencies)]
+
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use assert_cmd::Command;
-use predicates::prelude::*;
-
-/// We can only have a single webdriver session.
-static WEBDRIVER_MUTEX: Mutex<()> = Mutex::new(());
+use tempfile::TempDir;
 
 #[test]
 fn test_help() {
@@ -14,41 +16,69 @@ fn test_help() {
 
 #[test]
 fn test_list_folders() {
-    let _guard = webdriver_mutex();
     let mut cmd = cmd();
-    cmd.arg("--screenshot-on-failure")
-        .arg("--screenshot-path=test_list_folders.png")
-        .arg("-vv")
-        .arg("list-folders")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(
-            ["Inbox", "Drafts", "Sent", "Trash", "Archive", "Spam"].join("\n"),
-        ));
+    let res = cmd.arg("-vv").arg("list-folders").assert().success();
+    let stdout = String::from_utf8(res.get_output().stdout.clone()).unwrap();
+
+    insta::assert_display_snapshot!(stdout, @r###"
+    Inbox
+    Sent
+    Trash
+    Archive
+    Spam
+    Draft
+    fooooo
+    "###);
 }
 
 #[test]
-#[ignore]
-fn test_export() {
-    let _guard = webdriver_mutex();
+fn test_download() {
+    let actual_path = TempDir::new().unwrap();
+
+    let mut expected_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    expected_path.push("tests");
+    expected_path.push("reference");
+
     let mut cmd = cmd();
-    cmd.arg("--screenshot-on-failure")
-        .arg("--screenshot-path=test_export.png")
-        .arg("-vv")
-        .arg("export")
-        .arg("--folder=Archive")
+    cmd.arg("-vv")
+        .arg("download")
+        .arg("--folder=fooooo")
+        .arg("--path")
+        .arg(actual_path.path())
         .assert()
         .success();
+
+    let actual = read_files(actual_path.path());
+    let expected = read_files(&expected_path);
+
+    let mut actual_files = actual.keys().collect::<Vec<_>>();
+    actual_files.sort();
+    let mut expected_files = expected.keys().collect::<Vec<_>>();
+    expected_files.sort();
+    assert_eq!(actual_files, expected_files);
+
+    for fname in actual_files {
+        let actual_content = actual.get(fname).unwrap();
+        let expected_content = expected.get(fname).unwrap();
+        similar_asserts::assert_eq!(actual_content, expected_content);
+    }
 }
 
 fn cmd() -> Command {
     Command::cargo_bin(env!("CARGO_PKG_NAME")).unwrap()
 }
 
-fn webdriver_mutex() -> MutexGuard<'static, ()> {
-    match WEBDRIVER_MUTEX.lock() {
-        LockResult::Ok(guard) => guard,
-        // poisoned locks are OK
-        LockResult::Err(e) => e.into_inner(),
+fn read_files(path: &Path) -> HashMap<String, String> {
+    let mut out = HashMap::default();
+
+    for f in std::fs::read_dir(path).unwrap() {
+        let f = f.unwrap();
+        assert!(f.file_type().unwrap().is_file());
+        out.insert(
+            f.path().file_name().unwrap().to_str().unwrap().to_owned(),
+            std::fs::read_to_string(f.path()).unwrap(),
+        );
     }
+
+    out
 }
