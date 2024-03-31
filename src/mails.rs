@@ -6,7 +6,7 @@ use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 
 use crate::{
-    blob::get_mail_blob,
+    blob::{get_attachment_blob, get_mail_blob},
     client::{Client, Prefix, Request, DEFAULT_HOST},
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
@@ -107,7 +107,7 @@ impl Mail {
             None
         };
 
-        let mut attachements = vec![];
+        let mut attachments = vec![];
         if !self.attachments.is_empty() {
             let group = &self.attachments[0][0];
             if self.attachments.iter().any(|[g_id, _id]| g_id != group) {
@@ -131,7 +131,7 @@ impl Mail {
                 .await
                 .context("get file infos")?;
 
-            for file in files {
+            for (id, file) in ids.into_iter().zip(files) {
                 let session_key = decrypt_key(
                     session
                         .group_keys
@@ -153,10 +153,24 @@ impl Mail {
                     decrypt_value(session_key, file.name.as_ref()).context("decrypt file name")?;
                 let name = String::from_utf8(name).context("decode name")?;
 
-                attachements.push(Attachment {
+                let [blob] = file.blobs;
+                let data = get_attachment_blob(
+                    client,
+                    session,
+                    &blob.archive_id,
+                    &blob.blob_id,
+                    group,
+                    id,
+                )
+                .await
+                .context("download attachment")?;
+                let data = decrypt_value(session_key, &data).context("decrypt attachment data")?;
+
+                attachments.push(Attachment {
                     cid,
                     mime_type,
                     name,
+                    data,
                 });
             }
         }
@@ -165,7 +179,7 @@ impl Mail {
             mail: self,
             headers,
             body,
-            attachements,
+            attachments,
         })
     }
 }
@@ -175,7 +189,7 @@ pub(crate) struct DownloadedMail {
     pub(crate) mail: Mail,
     pub(crate) headers: Option<String>,
     pub(crate) body: Vec<u8>,
-    pub(crate) attachements: Vec<Attachment>,
+    pub(crate) attachments: Vec<Attachment>,
 }
 
 #[derive(Debug)]
@@ -183,4 +197,5 @@ pub(crate) struct Attachment {
     pub(crate) cid: String,
     pub(crate) mime_type: String,
     pub(crate) name: String,
+    pub(crate) data: Vec<u8>,
 }

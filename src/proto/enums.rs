@@ -159,6 +159,42 @@ impl<'de> serde::Deserialize<'de> for MailFolderType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ArchiveDataType {
+    AuthorityRequests,
+    Attachments,
+    MailDetails,
+}
+
+impl serde::Serialize for ArchiveDataType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let s = match self {
+            Self::AuthorityRequests => "0",
+            Self::Attachments => "1",
+            Self::MailDetails => "2",
+        };
+        serializer.serialize_str(s)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ArchiveDataType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.as_str() {
+            "0" => Ok(Self::AuthorityRequests),
+            "1" => Ok(Self::Attachments),
+            "2" => Ok(Self::MailDetails),
+            s => Err(D::Error::custom(format!("invalid archive data type: {s}"))),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::proto::testing::{assert_deser_error, assert_roundtrip};
@@ -202,5 +238,14 @@ mod tests {
         assert_roundtrip(MailFolderType::Draft);
 
         assert_deser_error::<MailFolderType>(r#""20""#, "invalid mail folder type: 20");
+    }
+
+    #[test]
+    fn test_roundtrip_archive_data_type() {
+        assert_roundtrip(ArchiveDataType::AuthorityRequests);
+        assert_roundtrip(ArchiveDataType::Attachments);
+        assert_roundtrip(ArchiveDataType::MailDetails);
+
+        assert_deser_error::<ArchiveDataType>(r#""20""#, "invalid archive data type: 20");
     }
 }

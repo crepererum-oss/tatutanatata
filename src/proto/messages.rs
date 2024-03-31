@@ -6,7 +6,7 @@ use super::{
     binary::{Base64String, Base64Url},
     constants::Null,
     date::UnixDate,
-    enums::{GroupType, KdfVersion, MailFolderType},
+    enums::{ArchiveDataType, GroupType, KdfVersion, MailFolderType},
     keys::{EncryptedKey, OptionalEncryptedKey},
 };
 
@@ -181,13 +181,22 @@ impl Entity for MailReponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct BlobReadRequestInstanceId {
+    #[serde(rename = "_id")]
+    pub(crate) id: String,
+
+    pub(crate) instance_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct BlobReadRequest {
     #[serde(rename = "_id")]
     pub(crate) id: String,
 
     pub(crate) archive_id: String,
-    pub(crate) instance_ids: Vec<()>,
-    pub(crate) instance_list_id: Null,
+    pub(crate) instance_ids: Vec<BlobReadRequestInstanceId>,
+    pub(crate) instance_list_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -196,7 +205,7 @@ pub(crate) struct BlobAccessTokenServiceRequest {
     #[serde(rename = "_format")]
     pub(crate) format: Format<0>,
 
-    pub(crate) archive_data_type: Null,
+    pub(crate) archive_data_type: ArchiveDataType,
     pub(crate) read: BlobReadRequest,
     pub(crate) write: Null,
 }
@@ -278,4 +287,15 @@ pub(crate) struct FileReponse {
     pub(crate) mime_type: Base64String,
     pub(crate) name: Base64String,
     pub(crate) blobs: [FileBlob; 1],
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BlobServiceRequest {
+    #[serde(rename = "_format")]
+    pub(crate) format: Format<0>,
+
+    pub(crate) archive_id: String,
+    pub(crate) blob_id: String,
+    pub(crate) blob_ids: Vec<()>,
 }

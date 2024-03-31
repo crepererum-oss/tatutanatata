@@ -19,6 +19,10 @@ use tracing::{debug, info};
 use assert_cmd as _;
 #[cfg(test)]
 use insta as _;
+#[cfg(test)]
+use similar_asserts as _;
+#[cfg(test)]
+use tempfile as _;
 
 mod blob;
 mod client;

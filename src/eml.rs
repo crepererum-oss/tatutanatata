@@ -15,8 +15,9 @@ const NEWLINE: &str = "\r\n";
 pub(crate) fn emit_eml(mail: &DownloadedMail) -> Result<String> {
     let mut lines = Vec::new();
 
+    // headers
     let boundary = if let Some(headers) = &mail.headers {
-        let mut headers = split_header_lines(&headers);
+        let mut headers = split_header_lines(headers);
         let boundary = get_boundary(&headers).context("get boundary")?;
 
         lines.append(&mut headers);
@@ -27,16 +28,36 @@ pub(crate) fn emit_eml(mail: &DownloadedMail) -> Result<String> {
         boundary
     };
 
+    // body
     write_intermediate_delimiter(&mut lines, &boundary);
-
     let body = Base64String::from(mail.body.clone());
     lines.push("Content-Type: text/html; charset=UTF-8".to_owned());
     lines.push("Content-Transfer-Encoding: base64".to_owned());
     lines.push("".to_owned());
     write_chunked(&mut lines, &body.to_string());
 
-    write_final_delimiter(&mut lines, &boundary);
+    // attachments
+    for attachment in &mail.attachments {
+        write_intermediate_delimiter(&mut lines, &boundary);
+        lines.push(format!(
+            "Content-Type: {}; name={}",
+            attachment.mime_type,
+            utf8_header_value(&attachment.name)
+        ));
+        lines.push("Content-Transfer-Encoding: base64".to_owned());
+        lines.push(format!(
+            "Content-Disposition: attachment; filename={}",
+            utf8_header_value(&attachment.name)
+        ));
+        lines.push(format!("Content-Id: <{}>", attachment.cid));
+        lines.push("".to_owned());
+        write_chunked(
+            &mut lines,
+            &Base64String::from(attachment.data.clone()).to_string(),
+        );
+    }
 
+    write_final_delimiter(&mut lines, &boundary);
     Ok(lines.join(NEWLINE))
 }
 
@@ -47,12 +68,9 @@ fn synthesize_headers(mail: &Mail, boundary: &str, lines: &mut Vec<String>) {
     lines.push("MIME-Version: 1.0".to_owned());
 
     if mail.subject.is_empty() {
-        lines.push(format!("Subject: "));
+        lines.push("Subject: ".to_owned());
     } else {
-        lines.push(format!(
-            "Subject: =?UTF-8?B?{}?=",
-            Base64String::from(mail.subject.as_bytes())
-        ));
+        lines.push(format!("Subject: {}", utf8_header_value(&mail.subject),));
     };
 
     lines.push(format!(
@@ -106,4 +124,8 @@ fn write_chunked(lines: &mut Vec<String>, s: &str) {
     for chunk in &s.chars().chunks(78) {
         lines.push(chunk.collect());
     }
+}
+
+fn utf8_header_value(s: &str) -> String {
+    format!("=?UTF-8?B?{}?=", Base64String::from(s.as_bytes()))
 }
