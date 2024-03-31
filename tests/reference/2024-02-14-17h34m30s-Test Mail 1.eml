@@ -1,0 +1,59 @@
+Authentication-Results: w10.tutanota.de (dis=neutral; info=dmarc default policy);
+	dmarc=pass (dis=neutral p=quarantine; aspf=r; adkim=r; pSrc=config) header.from=gmail.com;
+	dkim=pass header.d=gmail.com header.s=20230601 header.b=edoBn9eF
+Received: from w1.tutanota.de ([192.168.1.162])
+        by tutadb.w10.tutanota.de
+        with SMTP (SubEthaSMTP 3.1.7) id LSM2NHGE
+        for fritz.hutmacher@tutanota.com;
+        Wed, 14 Feb 2024 18:34:30 +0100 (CET)
+Received-SPF: Pass (mailfrom) identity=mailfrom; client-ip=209.85.128.44; helo=mail-wm1-f44.google.com; envelope-from=marco.riesa@gmail.com; receiver=<UNKNOWN> 
+Received: from mail-wm1-f44.google.com (mail-wm1-f44.google.com [209.85.128.44])
+	by w1.tutanota.de (Postfix) with ESMTPS id A6805FBFB61
+	for <fritz.hutmacher@tutanota.com>; Wed, 14 Feb 2024 17:34:30 +0000 (UTC)
+Received: by mail-wm1-f44.google.com with SMTP id 5b1f17b1804b1-411d715c401so10647515e9.1
+        for <fritz.hutmacher@tutanota.com>; Wed, 14 Feb 2024 09:34:30 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20230601; t=1707932070; x=1708536870; darn=tutanota.com;
+        h=to:subject:message-id:date:from:mime-version:from:to:cc:subject
+         :date:message-id:reply-to;
+        bh=1FMOce3XlhDnbuU/D4w6qoja3PAFHNbt6ySK0Le/s68=;
+        b=edoBn9eFJTEEpUNgv7G9Z3QwPyGA+qM+1ov0tWUAgTgukBypy4NAVUnLGpESgnH0Qc
+         QLjTeUEF48QYY8C8Tl/wvH+AKdYEpQEPmW4Su+NjFt1l1W2/uh3+rTmbjlVMEKxrFUrZ
+         f+FKA7BTOuFY5pie9kbwKpB9iZCLpkjIvqAxEvYFDKI0XLy9M426nZEGAjNaHBtLYeIh
+         YcbPlW2XbpMGzSjgwPXxD6sYG/+8wdScGzmE2l/W86Qt6fTTEqNxKgfP97Dsus401hTw
+         xSO0Si370E/W6YHozsk4Q5SCxeYqXlpr51rXOGoyMA6mjnOczM1MxcOqWwn/CQ+jAAtW
+         r25g==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1707932070; x=1708536870;
+        h=to:subject:message-id:date:from:mime-version:x-gm-message-state
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=1FMOce3XlhDnbuU/D4w6qoja3PAFHNbt6ySK0Le/s68=;
+        b=VJ+u1T2U9LukqEgfm40NdL2KRz2iFK/e52B3/FakH69lH7Oi5RZqL7ojAkHbmBBlP2
+         OZRZUZ7dEUh3wP35zX0ldxxvVyz8zFeSHcLlwW8y5hd3c74Gwa61VdsXQwmKHw4jRhAi
+         5OdJNl+/2xnPkRVM5NfFIV/cqZpmzxxJrj5BbjQRTCMxyPwVsojHL281fOJRjwQqZcbr
+         nBpu+B6qywbyVtL2XbEx0VklE6N037RXXtknWnOI/9LROsNDTYMlxBuNsOqaEThiBRZf
+         2qJkLsScw+nU/1nGN38dKXHIHPdBEjRZXf3+FX4IizIy2/Fi0sDCfdvm9OS8l6xflQtT
+         t9rw==
+X-Gm-Message-State: AOJu0Yynqcf2UnJXgdKgIFEJIXFsyV6Bi6nxwUTifCOWU8E5Lxz1xhkO
+	d4agnCd7qgIuMW0+Ia+edj3056Em7Fytor7euHdbOkdLY41LQ/ctN06F4hJY3WTTHaR5QfDZD85
+	rU2o9FHuMfXRArQ4kyZbC5Zi5n0KTXFuF
+X-Google-Smtp-Source: AGHT+IEThXqTWt03nPDGRK/WwQxD3d433TQshr/qcHWTuG5zBIX2xY+Ece7FqNFXDrZMnhuv4/RG45Yn8J129LIcCB0=
+X-Received: by 2002:adf:f243:0:b0:33b:87a0:3af with SMTP id
+ b3-20020adff243000000b0033b87a003afmr2024372wrp.67.1707932069953; Wed, 14 Feb
+ 2024 09:34:29 -0800 (PST)
+MIME-Version: 1.0
+From: Marco Neumann <marco.riesa@gmail.com>
+Date: Wed, 14 Feb 2024 18:34:18 +0100
+Message-ID: <CAJfSX1wC02xu-rBfWJZ93gE+ppLCzqBbLWfnUX4U22+0pgO8-w@mail.gmail.com>
+Subject: Test Mail 1
+To: fritz.hutmacher@tutanota.com
+Content-Type: multipart/alternative; boundary="00000000000054847d06115aec07"
+
+--00000000000054847d06115aec07
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: base64
+
+PGRpdiBkaXI9Imx0ciI+PGRpdj5IZWxsbyBXb3JsZCE8L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pl
+RoaXMgaXMgYSB0ZXN0Ljxicj48L2Rpdj48L2Rpdj4NCg==
+
+--00000000000054847d06115aec07--

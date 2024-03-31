@@ -1,0 +1,57 @@
+[package]
+name = "tatutanatata"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+aes = "0.8.3"
+anyhow = "1.0.75"
+base64 = "0.21.7"
+bcrypt = "0.15.0"
+cbc = { version = "0.1.2", features = ["alloc"] }
+chrono = "0.4.34"
+clap = { version = "4.4.6", features = ["derive", "env"] }
+dotenvy = "0.15.7"
+futures = "0.3.28"
+hmac = "0.12.1"
+itertools = "0.12.1"
+lz4_flex = "0.11.2"
+regex = "1.10.3"
+reqwest = { version = "0.11", default-features = false, features = ["brotli", "deflate", "gzip", "json", "rustls-tls-webpki-roots", "trust-dns"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10.8"
+tokio = { version = "1.32.0", features = ["fs", "macros", "rt-multi-thread"] }
+tracing = "0.1.38"
+tracing-log = "0.1.3"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+
+[dev-dependencies]
+assert_cmd = "2.0.12"
+insta = "1.34.0"
+similar-asserts = "1.5.0"
+tempfile = "3"
+
+[lints.rust]
+missing_copy_implementations = "deny"
+missing_debug_implementations = "deny"
+rust_2018_idioms = "deny"
+unreachable_pub = "deny"
+unused_crate_dependencies = "deny"
+
+[lints.clippy]
+clone_on_ref_ptr = "deny"
+dbg_macro = "deny"
+explicit_iter_loop = "deny"
+future_not_send = "deny"
+todo = "deny"
+use_self = "deny"
+
+[lints.rustdoc]
+bare_urls = "deny"
+broken_intra_doc_links = "deny"
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3
