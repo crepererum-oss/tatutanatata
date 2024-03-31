@@ -10,7 +10,7 @@ use crate::{
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use folders::Folder;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use logging::{setup_logging, LoggingCLIConfig};
 use tracing::{debug, info};
 
@@ -56,6 +56,10 @@ struct Args {
 
 #[derive(Debug, Parser)]
 struct DownloadCLIConfig {
+    /// Concurrent downloads.
+    #[clap(long, action, default_value_t = 5)]
+    concurrent_downloads: usize,
+
     /// Folder name.
     #[clap(long, action)]
     folder: String,
@@ -130,32 +134,42 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                 .context("folder not found")?;
             debug!(mails = folder.mails.as_str(), "download mails from folder");
 
-            let mails = Mail::list(client, session, &folder);
-            let mut mails = std::pin::pin!(mails);
-            while let Some(mail) = mails.try_next().await.context("list mails")? {
-                let target_file = cfg.path.join(format!(
-                    "{}-{}.eml",
-                    mail.date.format("%Y-%m-%d-%Hh%Mm%Ss"),
-                    escape_file_string(&mail.subject),
-                ));
+            Mail::list(client, session, &folder)
+                .map(|mail| {
+                    let cfg = &cfg;
 
-                if tokio::fs::try_exists(&target_file)
-                    .await
-                    .context("check file existence")?
-                {
-                    info!(id = mail.mail_id.as_str(), "already exists");
-                } else {
-                    info!(id = mail.mail_id.as_str(), "download");
-                    let mail = mail
-                        .download(client, session)
-                        .await
-                        .context("download mail")?;
-                    let eml = emit_eml(&mail).context("emit eml")?;
-                    write_to_file(eml.as_bytes(), &target_file)
-                        .await
-                        .context("write output file")?;
-                }
-            }
+                    async move {
+                        let mail = mail.context("list mail")?;
+
+                        let target_file = cfg.path.join(format!(
+                            "{}-{}.eml",
+                            mail.date.format("%Y-%m-%d-%Hh%Mm%Ss"),
+                            escape_file_string(&mail.subject),
+                        ));
+
+                        if tokio::fs::try_exists(&target_file)
+                            .await
+                            .context("check file existence")?
+                        {
+                            info!(id = mail.mail_id.as_str(), "already exists");
+                        } else {
+                            info!(id = mail.mail_id.as_str(), "download");
+                            let mail = mail
+                                .download(client, session)
+                                .await
+                                .context("download mail")?;
+                            let eml = emit_eml(&mail).context("emit eml")?;
+                            write_to_file(eml.as_bytes(), &target_file)
+                                .await
+                                .context("write output file")?;
+                        }
+
+                        Ok(()) as Result<()>
+                    }
+                })
+                .buffer_unordered(cfg.concurrent_downloads)
+                .try_collect::<()>()
+                .await?;
 
             Ok(())
         }
