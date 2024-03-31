@@ -20,7 +20,7 @@ fn test_list_folders() {
     let res = cmd.arg("-vv").arg("list-folders").assert().success();
     let stdout = String::from_utf8(res.get_output().stdout.clone()).unwrap();
 
-    insta::assert_display_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(stdout, @r###"
     Inbox
     Sent
     Trash

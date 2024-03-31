@@ -1,8 +1,8 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{de::Error, Deserializer, Serializer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct UnixDate(pub(crate) NaiveDateTime);
+pub(crate) struct UnixDate(pub(crate) DateTime<Utc>);
 
 impl serde::Serialize for UnixDate {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -22,7 +22,7 @@ impl<'de> serde::Deserialize<'de> for UnixDate {
         let millis = millis
             .parse()
             .map_err(|e| D::Error::custom(format!("invalid time: {e}")))?;
-        match NaiveDateTime::from_timestamp_millis(millis) {
+        match DateTime::from_timestamp_millis(millis) {
             Some(dt) => Ok(Self(dt)),
             None => Err(D::Error::custom(format!("invalid time: {millis}"))),
         }
@@ -37,9 +37,7 @@ mod tests {
 
     #[test]
     fn test_unix_date_roundtrip() {
-        assert_roundtrip(UnixDate(
-            NaiveDateTime::from_timestamp_millis(1337).unwrap(),
-        ));
+        assert_roundtrip(UnixDate(DateTime::from_timestamp_millis(1337).unwrap()));
 
         assert_deser_error::<UnixDate>(
             &format!(r#""{}""#, i64::MIN),

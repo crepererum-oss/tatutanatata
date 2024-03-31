@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 
@@ -26,7 +26,7 @@ pub(crate) struct Mail {
     pub(crate) archive_id: String,
     pub(crate) blob_id: String,
     pub(crate) session_key: Key,
-    pub(crate) date: NaiveDateTime,
+    pub(crate) date: DateTime<Utc>,
     pub(crate) subject: String,
     pub(crate) sender_mail: String,
     pub(crate) sender_name: String,
