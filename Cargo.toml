@@ -29,7 +29,7 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.14"
-insta = "1.34.0"
+insta = "1.38.0"
 similar-asserts = "1.5.0"
 tempfile = "3"
 
