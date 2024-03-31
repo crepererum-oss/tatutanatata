@@ -26,14 +26,6 @@ jobs:
       - name: Install Toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Geckodriver
-        uses: browser-actions/setup-geckodriver@latest
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Start Geckodriver
-        run: geckodriver &
-
       - name: Cache
         uses: Swatinem/rust-cache@v2
 
@@ -51,14 +43,6 @@ jobs:
         env:
           TUTANOTA_CLI_USERNAME: ${{ secrets.TUTANOTA_CLI_USERNAME }}
           TUTANOTA_CLI_PASSWORD: ${{ secrets.TUTANOTA_CLI_PASSWORD }}
-
-      - name: Preserve Screenshots
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: screenshots
-          path: "*.png"
-          if-no-files-found: ignore
 
       - name: cargo doc
         run: cargo doc --document-private-items --no-deps --all-features --workspace
