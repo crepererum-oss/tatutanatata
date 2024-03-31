@@ -1,12 +1,13 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use chrono::NaiveDateTime;
 use futures::{Stream, TryStreamExt};
+use reqwest::Method;
 
 use crate::{
     blob::get_mail_blob,
-    client::Client,
+    client::{Client, Prefix, Request, DEFAULT_HOST},
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
     folders::Folder,
@@ -16,10 +17,6 @@ use crate::{
     },
     session::{GroupKeys, Session},
 };
-
-static LINE_ENDING_RE: OnceLock<regex::bytes::Regex> = OnceLock::new();
-static BOUNDARY_RE: OnceLock<regex::bytes::Regex> = OnceLock::new();
-const NEWLINE: &[u8] = b"\r\n";
 
 #[derive(Debug)]
 pub(crate) struct Mail {
@@ -122,7 +119,15 @@ impl Mail {
                 .map(|[_g_id, id]| id.as_str())
                 .collect::<Vec<_>>();
             let files: Vec<FileReponse> = client
-                .file_request(&session.access_token, group, &ids)
+                .do_json(Request {
+                    method: Method::GET,
+                    host: DEFAULT_HOST,
+                    prefix: Prefix::Tutanota,
+                    path: &format!("file/{group}"),
+                    data: &(),
+                    access_token: Some(&session.access_token),
+                    query: &[("ids", &ids.join(","))],
+                })
                 .await
                 .context("get file infos")?;
 

@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use reqwest::Method;
 
 use crate::{
-    client::Client,
+    client::{Client, Prefix, Request, DEFAULT_HOST},
     proto::messages::{
         BlobAccessTokenServiceRequest, BlobAccessTokenServiceResponse, BlobReadRequest,
         MailDetailsBlob,
@@ -21,13 +21,19 @@ pub(crate) async fn get_mail_blob(
         .context("get blob access")?;
 
     let resp: Vec<MailDetailsBlob> = client
-        .mail_blob_request(
-            &access.server_url,
-            &format!("maildetailsblob/{archive_id}"),
-            &session.access_token,
-            &[blob_id],
-            &access.blob_access_token,
-        )
+        .do_json(Request {
+            method: Method::GET,
+            host: &access.server_url,
+            prefix: Prefix::Tutanota,
+            path: &format!("maildetailsblob/{archive_id}"),
+            data: &(),
+            access_token: None,
+            query: &[
+                ("accessToken", &session.access_token.to_string()),
+                ("ids", &[blob_id].join(",")),
+                ("blobAccessToken", &access.blob_access_token),
+            ],
+        })
         .await
         .context("blob download")?;
 
@@ -51,12 +57,15 @@ async fn get_access(client: &Client, session: &Session, archive_id: &str) -> Res
         write: Default::default(),
     };
     let resp: BlobAccessTokenServiceResponse = client
-        .service_request_storage(
-            Method::POST,
-            "blobaccesstokenservice",
-            &req,
-            Some(&session.access_token),
-        )
+        .do_json(Request {
+            method: Method::POST,
+            host: DEFAULT_HOST,
+            prefix: Prefix::Storage,
+            path: "blobaccesstokenservice",
+            data: &req,
+            access_token: Some(&session.access_token),
+            query: &[],
+        })
         .await
         .context("blob service access request")?;
 

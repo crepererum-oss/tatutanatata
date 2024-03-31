@@ -12,7 +12,7 @@ use crate::{
 };
 
 const STREAM_BATCH_SIZE: u64 = 1000;
-const DEFAULT_HOST: &str = "https://app.tuta.com";
+pub(crate) const DEFAULT_HOST: &str = "https://app.tuta.com";
 
 #[derive(Debug, Clone)]
 pub(crate) struct Client {
@@ -29,145 +29,6 @@ impl Client {
             .context("set up HTTPs client")?;
 
         Ok(Self { inner })
-    }
-
-    pub(crate) async fn service_request<Req, Resp>(
-        &self,
-        method: Method,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-    ) -> Result<Resp>
-    where
-        Req: serde::Serialize + Sync,
-        Resp: DeserializeOwned,
-    {
-        self.do_json(Request {
-            method,
-            host: DEFAULT_HOST,
-            prefix: "sys",
-            path,
-            data,
-            access_token,
-            query: &[],
-        })
-        .await
-    }
-
-    pub(crate) async fn service_request_tutanota<Req, Resp>(
-        &self,
-        method: Method,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-    ) -> Result<Resp>
-    where
-        Req: serde::Serialize + Sync,
-        Resp: DeserializeOwned,
-    {
-        self.do_json(Request {
-            method,
-            host: DEFAULT_HOST,
-            prefix: "tutanota",
-            path,
-            data,
-            access_token,
-            query: &[],
-        })
-        .await
-    }
-
-    pub(crate) async fn service_request_storage<Req, Resp>(
-        &self,
-        method: Method,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-    ) -> Result<Resp>
-    where
-        Req: serde::Serialize + Sync,
-        Resp: DeserializeOwned,
-    {
-        self.do_json(Request {
-            method,
-            host: DEFAULT_HOST,
-            prefix: "storage",
-            path,
-            data,
-            access_token,
-            query: &[],
-        })
-        .await
-    }
-
-    pub(crate) async fn file_request<Resp>(
-        &self,
-        access_token: &Base64Url,
-        group_id: &str,
-        ids: &[&str],
-    ) -> Result<Resp>
-    where
-        Resp: DeserializeOwned,
-    {
-        self.do_json(Request {
-            method: Method::GET,
-            host: DEFAULT_HOST,
-            prefix: "tutanota",
-            path: &format!("file/{group_id}"),
-            data: &(),
-            access_token: Some(access_token),
-            query: &[("ids", &ids.join(","))],
-        })
-        .await
-    }
-
-    pub(crate) async fn mail_blob_request<Resp>(
-        &self,
-        host: &str,
-        path: &str,
-        access_token: &Base64Url,
-        ids: &[&str],
-        blob_access_token: &str,
-    ) -> Result<Resp>
-    where
-        Resp: DeserializeOwned,
-    {
-        self.do_json(Request {
-            method: Method::GET,
-            host,
-            prefix: "tutanota",
-            path,
-            data: &(),
-            access_token: None,
-            query: &[
-                ("accessToken", &access_token.to_string()),
-                ("ids", &ids.join(",")),
-                ("blobAccessToken", blob_access_token),
-            ],
-        })
-        .await
-    }
-
-    pub(crate) async fn service_request_no_response<Req>(
-        &self,
-        method: Method,
-        path: &str,
-        data: &Req,
-        access_token: Option<&Base64Url>,
-    ) -> Result<Response>
-    where
-        Req: serde::Serialize + Sync,
-    {
-        self.do_request(Request {
-            method,
-            host: DEFAULT_HOST,
-            prefix: "sys",
-            path,
-            data,
-            access_token,
-            query: &[],
-        })
-        .await
     }
 
     pub(crate) fn stream<Resp>(
@@ -206,7 +67,7 @@ impl Client {
                         .do_json::<(), Vec<Resp>>(Request {
                             method: Method::GET,
                             host: DEFAULT_HOST,
-                            prefix: "tutanota",
+                            prefix: Prefix::Tutanota,
                             path: &path,
                             data: &(),
                             access_token: access_token.as_ref().as_ref(),
@@ -233,7 +94,7 @@ impl Client {
         })
     }
 
-    async fn do_json<Req, Resp>(&self, r: Request<'_, Req>) -> Result<Resp>
+    pub(crate) async fn do_json<Req, Resp>(&self, r: Request<'_, Req>) -> Result<Resp>
     where
         Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
@@ -248,7 +109,7 @@ impl Client {
         Ok(resp)
     }
 
-    async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
+    pub(crate) async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
     where
         Req: serde::Serialize + Sync,
     {
@@ -261,11 +122,11 @@ impl Client {
             access_token,
             query,
         } = r;
-        debug!(%method, prefix, path, "service request",);
+        debug!(%method, prefix=prefix.str(), path, "service request",);
 
         let mut req = self
             .inner
-            .request(method, format!("{host}/rest/{prefix}/{path}"));
+            .request(method, format!("{}/rest/{}/{}", host, prefix.str(), path));
 
         if let Some(access_token) = access_token {
             req = req.header("accessToken", access_token.to_string());
@@ -289,15 +150,49 @@ struct StreamState<T> {
     next_start: String,
 }
 
-struct Request<'a, Req>
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Prefix {
+    Tutanota,
+    Storage,
+    Sys,
+}
+
+impl Prefix {
+    fn str(&self) -> &'static str {
+        match self {
+            Self::Tutanota => "tutanota",
+            Self::Storage => "storage",
+            Self::Sys => "sys",
+        }
+    }
+}
+
+pub(crate) struct Request<'a, Req>
 where
     Req: serde::Serialize + Sync,
 {
-    method: Method,
-    host: &'a str,
-    prefix: &'a str,
-    path: &'a str,
-    data: &'a Req,
-    access_token: Option<&'a Base64Url>,
-    query: &'a [(&'a str, &'a str)],
+    pub(crate) method: Method,
+    pub(crate) host: &'a str,
+    pub(crate) prefix: Prefix,
+    pub(crate) path: &'a str,
+    pub(crate) data: &'a Req,
+    pub(crate) access_token: Option<&'a Base64Url>,
+    pub(crate) query: &'a [(&'a str, &'a str)],
+}
+
+impl<'a, Req> Request<'a, Req>
+where
+    Req: serde::Serialize + Sync,
+{
+    pub(crate) fn new(prefix: Prefix, path: &'a str, data: &'a Req) -> Self {
+        Self {
+            method: Method::GET,
+            host: DEFAULT_HOST,
+            prefix,
+            path,
+            data,
+            access_token: None,
+            query: &[],
+        }
+    }
 }

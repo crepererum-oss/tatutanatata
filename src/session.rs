@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use tracing::debug;
 
 use crate::{
-    client::Client,
+    client::{Client, Prefix, Request, DEFAULT_HOST},
     constants::APP_USER_AGENT,
     crypto::{
         auth::{derive_passkey, encode_auth_verifier, UserPassphraseKey},
@@ -56,7 +56,7 @@ impl Session {
             mail_address: config.username.to_string(),
         };
         let resp: SaltServiceResponse = client
-            .service_request(Method::GET, "saltservice", &req, None)
+            .do_json(Request::new(Prefix::Sys, "saltservice", &req))
             .await
             .context("get salt")?;
 
@@ -75,7 +75,10 @@ impl Session {
             user: Default::default(),
         };
         let resp: SessionServiceResponse = client
-            .service_request(Method::POST, "sessionservice", &req, None)
+            .do_json(Request {
+                method: Method::POST,
+                ..Request::new(Prefix::Sys, "sessionservice", &req)
+            })
             .await
             .context("get session")?;
         let user_id = resp.user;
@@ -88,12 +91,10 @@ impl Session {
         }
 
         let user_data: UserResponse = client
-            .service_request(
-                Method::GET,
-                &format!("user/{}", user_id),
-                &(),
-                Some(&access_token),
-            )
+            .do_json(Request {
+                access_token: Some(&access_token),
+                ..Request::new(Prefix::Sys, &format!("user/{}", user_id), &())
+            })
             .await
             .context("get user")?;
 
@@ -114,16 +115,19 @@ impl Session {
         debug!(session = session.as_str(), "performing logout",);
 
         client
-            .service_request_no_response(
-                Method::DELETE,
-                &format!(
+            .do_request(Request {
+                method: Method::DELETE,
+                host: DEFAULT_HOST,
+                prefix: Prefix::Sys,
+                path: &format!(
                     "session/{}/{}",
                     session,
                     session_element_id(&self.access_token)
                 ),
-                &(),
-                Some(&self.access_token),
-            )
+                data: &(),
+                access_token: Some(&self.access_token),
+                query: &[],
+            })
             .await
             .context("session deletion")?;
 

@@ -9,7 +9,7 @@ use reqwest::Method;
 use tracing::debug;
 
 use crate::{
-    client::Client,
+    client::{Client, Prefix, Request, DEFAULT_HOST},
     crypto::encryption::{decrypt_key, decrypt_value},
     proto::{
         enums::{GroupType, MailFolderType},
@@ -32,12 +32,15 @@ impl Folder {
         let mail_group = get_mail_membership(session).context("get mail group")?;
 
         let resp: MailboxGroupRootResponse = client
-            .service_request_tutanota(
-                Method::GET,
-                &format!("mailboxgrouproot/{}", mail_group.group),
-                &(),
-                Some(&session.access_token),
-            )
+            .do_json(Request {
+                method: Method::GET,
+                host: DEFAULT_HOST,
+                prefix: Prefix::Tutanota,
+                path: &format!("mailboxgrouproot/{}", mail_group.group),
+                data: &(),
+                access_token: Some(&session.access_token),
+                query: &[],
+            })
             .await
             .context("get mailbox group root")?;
         let mailbox = resp.mailbox;
@@ -45,12 +48,15 @@ impl Folder {
         debug!(mailbox = mailbox.as_str(), "mailbox found");
 
         let resp: MailboxResponse = client
-            .service_request_tutanota(
-                Method::GET,
-                &format!("mailbox/{mailbox}"),
-                &(),
-                Some(&session.access_token),
-            )
+            .do_json(Request {
+                method: Method::GET,
+                host: DEFAULT_HOST,
+                prefix: Prefix::Tutanota,
+                path: &format!("mailbox/{mailbox}"),
+                data: &(),
+                access_token: Some(&session.access_token),
+                query: &[],
+            })
             .await
             .context("get mailbox")?;
         let folders = resp.folders.folders;
