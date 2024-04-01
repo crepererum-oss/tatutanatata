@@ -274,6 +274,47 @@ mod tests {
     }
 
     #[test]
+    fn test_content_type_multi_line() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender_mail: "foo@example.com".to_owned(),
+                sender_name: "Me".to_owned(),
+                attachments: vec![],
+            },
+            headers: Some(
+                "From: foo@example.com\nContent-Type: multipart/related;\n\tboundary=\"myboundary\"\nFoo: bar\nContent-Type: text/plain\nFoo2: bar2"
+                    .to_owned(),
+            ),
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: foo@example.com
+        Foo: bar
+        Foo2: bar2
+        Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        ------------79Bu5A16qPEYcVIZL@tutanota--
+        "###);
+    }
+
+    #[test]
     fn test_attachments() {
         let eml = emit_eml(&DownloadedMail {
             mail: Mail {
