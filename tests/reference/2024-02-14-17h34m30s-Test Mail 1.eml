@@ -47,13 +47,13 @@ Date: Wed, 14 Feb 2024 18:34:18 +0100
 Message-ID: <CAJfSX1wC02xu-rBfWJZ93gE+ppLCzqBbLWfnUX4U22+0pgO8-w@mail.gmail.com>
 Subject: Test Mail 1
 To: fritz.hutmacher@tutanota.com
-Content-Type: multipart/alternative; boundary="00000000000054847d06115aec07"
+Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
 
---00000000000054847d06115aec07
+------------79Bu5A16qPEYcVIZL@tutanota
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: base64
 
 PGRpdiBkaXI9Imx0ciI+PGRpdj5IZWxsbyBXb3JsZCE8L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pl
 RoaXMgaXMgYSB0ZXN0Ljxicj48L2Rpdj48L2Rpdj4NCg==
 
---00000000000054847d06115aec07--
+------------79Bu5A16qPEYcVIZL@tutanota--

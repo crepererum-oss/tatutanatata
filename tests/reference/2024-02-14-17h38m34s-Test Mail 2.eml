@@ -47,15 +47,15 @@ Date: Wed, 14 Feb 2024 18:38:22 +0100
 Message-ID: <CAJfSX1zUHq4oEfG2auREw_-NLrKRjm5Nn2=YrndnnjFO==TpYw@mail.gmail.com>
 Subject: Test Mail 2
 To: fritz.hutmacher@tutanota.com
-Content-Type: multipart/mixed; boundary="000000000000dc325006115afa66"
+Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
 
---000000000000dc325006115afa66
+------------79Bu5A16qPEYcVIZL@tutanota
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: base64
 
 PGRpdiBkaXI9Imx0ciI+VGhpcyBoYXMgc29tZSBhdHRhY2hlbWVudHMuPGJyPjwvZGl2Pg0K
 
---000000000000dc325006115afa66
+------------79Bu5A16qPEYcVIZL@tutanota
 Content-Type: image/jpeg; name==?UTF-8?B?Ym9vay5qcGc=?=
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename==?UTF-8?B?Ym9vay5qcGc=?=
@@ -332,7 +332,7 @@ eqPlPJGXzi4tlr9Ny5cuXLly5cZely9b0vS5f1P8hoQYOgk1dpbuWipfRbret6XLly5cuXLl6XrcvS
 5cuXLl6X/Jf0XLly/wCEAuW63Lly5cvS9Lly5cuXpf8ADcuX/g3qS5cvMuXLly/4Ll/zn1MuP81/V/
 /Z
 
---000000000000dc325006115afa66
+------------79Bu5A16qPEYcVIZL@tutanota
 Content-Type: image/jpeg; name==?UTF-8?B?c3VuLmpwZw==?=
 Content-Transfer-Encoding: base64
 Content-Disposition: attachment; filename==?UTF-8?B?c3VuLmpwZw==?=
@@ -2019,4 +2019,4 @@ To48q1gmBRXQu3ze8EqBrTqK63kCnwQyNYtCnYUajXrEbL1OTFy+cZaRPWNK3G2byReecZZNYsv/4Z
 hlXIObyHMonWSCJxAvLHbcXgs4piaOEm/nATAOU+cmhn3jNu/eNkOMGxgDIpm8XmxfjFuSyf/wAgz1
 gxlMm8l+//AEzWT/4T/wD41//Z
 
---000000000000dc325006115afa66--
+------------79Bu5A16qPEYcVIZL@tutanota--

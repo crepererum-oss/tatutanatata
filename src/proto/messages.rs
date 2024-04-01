@@ -235,13 +235,15 @@ pub(crate) struct BlobAccessTokenServiceResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MailBody {
-    pub(crate) compressed_text: Base64String,
+    pub(crate) text: Option<Base64String>,
+    pub(crate) compressed_text: Option<Base64String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MailHeaders {
-    pub(crate) compressed_headers: Base64String,
+    pub(crate) headers: Option<Base64String>,
+    pub(crate) compressed_headers: Option<Base64String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -283,7 +285,7 @@ pub(crate) struct FileReponse {
     #[serde(rename = "_ownerGroup")]
     pub(crate) owner_group: String,
 
-    pub(crate) cid: Base64String,
+    pub(crate) cid: Option<Base64String>,
     pub(crate) mime_type: Base64String,
     pub(crate) name: Base64String,
     pub(crate) blobs: [FileBlob; 1],

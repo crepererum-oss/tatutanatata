@@ -88,19 +88,24 @@ impl Mail {
     ) -> Result<DownloadedMail> {
         let mail_details = get_mail_blob(client, session, &self.archive_id, &self.blob_id)
             .await
-            .context("download mail details")?;
-        let body = decrypt_value(
-            self.session_key,
-            mail_details.details.body.compressed_text.as_ref(),
-        )
-        .context("decrypt body")?;
-        let body = decompress_value(&body).context("decompress body")?;
+            .context("download mail details")?
+            .details;
 
-        let headers = if let Some(headers) = mail_details.details.headers {
-            let headers = decrypt_value(self.session_key, headers.compressed_headers.as_ref())
-                .context("decrypt headers")?;
-            let headers = decompress_value(&headers).context("decompress headers")?;
-            let headers = String::from_utf8(headers).context("decode headers")?;
+        let body = decrypt_and_decompress(
+            self.session_key,
+            mail_details.body.text.as_deref(),
+            mail_details.body.compressed_text.as_deref(),
+        )
+        .context("decode body")?;
+
+        let headers = if let Some(headers) = mail_details.headers {
+            let headers = decrypt_and_decompress(
+                self.session_key,
+                headers.headers.as_deref(),
+                headers.compressed_headers.as_deref(),
+            )
+            .context("decode headers")?;
+            let headers = String::from_utf8(headers).context("decode headers string")?;
 
             Some(headers)
         } else {
@@ -141,9 +146,13 @@ impl Mail {
                 )
                 .context("decrypting file session key")?;
 
-                let cid = decrypt_value(session_key, file.cid.as_ref())
-                    .context("decrypt file content ID")?;
-                let cid = String::from_utf8(cid).context("decode cid")?;
+                let cid = if let Some(cid) = &file.cid {
+                    let cid = decrypt_value(session_key, cid).context("decrypt file content ID")?;
+                    let cid = String::from_utf8(cid).context("decode cid")?;
+                    Some(cid)
+                } else {
+                    None
+                };
 
                 let mime_type = decrypt_value(session_key, file.mime_type.as_ref())
                     .context("decrypt file mime type")?;
@@ -184,6 +193,27 @@ impl Mail {
     }
 }
 
+fn decrypt_and_decompress(
+    encryption_key: Key,
+    plain: Option<&[u8]>,
+    compressed: Option<&[u8]>,
+) -> Result<Vec<u8>> {
+    match (plain, compressed) {
+        (Some(data), _) => {
+            let data = decrypt_value(encryption_key, data).context("decrypt")?;
+            Ok(data)
+        }
+        (None, Some(data)) => {
+            let data = decrypt_value(encryption_key, data).context("decrypt")?;
+            let data = decompress_value(&data).context("decompress")?;
+            Ok(data)
+        }
+        (None, None) => {
+            bail!("neither compressed or uncompressed data available")
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct DownloadedMail {
     pub(crate) mail: Mail,
@@ -194,7 +224,7 @@ pub(crate) struct DownloadedMail {
 
 #[derive(Debug)]
 pub(crate) struct Attachment {
-    pub(crate) cid: String,
+    pub(crate) cid: Option<String>,
     pub(crate) mime_type: String,
     pub(crate) name: String,
     pub(crate) data: Vec<u8>,
