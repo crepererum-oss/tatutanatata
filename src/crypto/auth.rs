@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
+use argon2::PasswordHasher;
+use base64::prelude::*;
 use sha2::{Digest, Sha256};
 
 use crate::proto::{binary::Base64Url, enums::KdfVersion, keys::Key};
@@ -41,7 +43,40 @@ pub(crate) fn derive_passkey(
                 hashed[..16].try_into().expect("checked length"),
             )))
         }
-        KdfVersion::Argon2id => bail!("not implemented: Argon2id"),
+        KdfVersion::Argon2id => {
+            let argon2 = argon2::Argon2::new(
+                argon2::Algorithm::Argon2id,
+                argon2::Version::V0x13,
+                argon2::Params::new(
+                    // memory size in 1 KiB blocks
+                    32 * 1024,
+                    // number of iterations
+                    4,
+                    // degree of parallelism
+                    1,
+                    // size of the KDF output in bytes
+                    Some(32),
+                )
+                .expect("valid params"),
+            );
+            let salt =
+                argon2::password_hash::SaltString::from_b64(&BASE64_STANDARD_NO_PAD.encode(salt))
+                    .map_err(|e| anyhow!("{e}"))
+                    .context("salt length")?;
+
+            let hashed = argon2
+                .hash_password(passphrase.as_bytes(), &salt)
+                .map_err(|e| anyhow!("{e}"))
+                .context("hash password")?;
+            Ok(UserPassphraseKey(Key::Aes256(
+                hashed
+                    .hash
+                    .expect("just hashed")
+                    .as_bytes()
+                    .try_into()
+                    .expect("length OK"),
+            )))
+        }
     }
 }
 
