@@ -14,27 +14,28 @@ type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 type HmacSha256 = Hmac<Sha256>;
 
-pub(crate) fn decrypt_key(encryption_key: Key, key_to_be_decrypted: EncryptedKey) -> Result<Key> {
-    match encryption_key {
-        Key::Aes128(k) => {
-            let iv: [u8; 16] = [128u8 + 8; 16];
-            let decrypted = Aes128CbcDec::new(&k.into(), &iv.into())
-                .decrypt_padded_vec_mut::<NoPadding>(key_to_be_decrypted.deref().deref())
-                .map_err(|e| anyhow!("{e}"))
-                .context("AES decryption")?;
+const IV_LEN: usize = 16;
 
-            match key_to_be_decrypted.deref() {
-                Key::Aes128(_) => Ok(Key::Aes128(decrypted.try_into().expect("checked length"))),
-                Key::Aes256(_) => Ok(Key::Aes256(decrypted.try_into().expect("checked length"))),
-            }
-        }
-        Key::Aes256(_) => {
-            bail!("not implemented: AES256")
-        }
+pub(crate) fn decrypt_key(encryption_key: Key, key_to_be_decrypted: EncryptedKey) -> Result<Key> {
+    // add constant IV to encrypted data
+    let iv: [u8; IV_LEN] = [128u8 + 8; IV_LEN];
+    let mut data = Vec::with_capacity(key_to_be_decrypted.len() + iv.len());
+    data.extend_from_slice(&iv);
+    data.extend_from_slice(key_to_be_decrypted.as_ref());
+
+    let decrypted = decrypt(encryption_key, &data, false)?;
+
+    match key_to_be_decrypted.deref() {
+        Key::Aes128(_) => Ok(Key::Aes128(decrypted.try_into().expect("checked length"))),
+        Key::Aes256(_) => Ok(Key::Aes256(decrypted.try_into().expect("checked length"))),
     }
 }
 
 pub(crate) fn decrypt_value(encryption_key: Key, value: &[u8]) -> Result<Vec<u8>> {
+    decrypt(encryption_key, value, true)
+}
+
+fn decrypt(encryption_key: Key, value: &[u8], padding: bool) -> Result<Vec<u8>> {
     let (encryption_key, value) = if value.len() % 2 == 1 {
         // use mac
         const MAC_LEN: usize = 32;
@@ -54,38 +55,39 @@ pub(crate) fn decrypt_value(encryption_key: Key, value: &[u8]) -> Result<Vec<u8>
 
         (subkeys.encryption_key, payload)
     } else {
-        // technically this is
-        //     (k, value)
-        //
-        // however we haven't seen this used yet so we just bail out for now
-        bail!("not implemented: value w/o MAC")
+        (encryption_key, value)
     };
+
+    // get IV
+    if value.len() < IV_LEN {
+        bail!("IV missing")
+    }
+    let iv: [u8; IV_LEN] = value[..IV_LEN].try_into().expect("checked length");
+    let value = &value[IV_LEN..];
 
     match encryption_key {
         Key::Aes128(k) => {
-            // get IV
-            const IV_LEN: usize = 16;
-            if value.len() < IV_LEN {
-                bail!("IV missing")
+            if padding {
+                Aes128CbcDec::new(&k.into(), &iv.into())
+                    .decrypt_padded_vec_mut::<Pkcs7>(value)
+                    .map_err(|e| anyhow!("{e}"))
+                    .context("AES decryption")
+            } else {
+                Aes128CbcDec::new(&k.into(), &iv.into())
+                    .decrypt_padded_vec_mut::<NoPadding>(value)
+                    .map_err(|e| anyhow!("{e}"))
+                    .context("AES decryption")
             }
-            let iv: [u8; IV_LEN] = value[..IV_LEN].try_into().expect("checked length");
-            let value = &value[IV_LEN..];
-            Aes128CbcDec::new(&k.into(), &iv.into())
-                .decrypt_padded_vec_mut::<Pkcs7>(value)
-                .map_err(|e| anyhow!("{e}"))
-                .context("AES decryption")
         }
         Key::Aes256(k) => {
-            const IV_LEN: usize = 16;
-            if value.len() < IV_LEN {
-                bail!("IV missing")
+            if padding {
+                Aes256CbcDec::new(&k.into(), &iv.into())
+                    .decrypt_padded_vec_mut::<Pkcs7>(value)
+                    .map_err(|e| anyhow!("{e}"))
+                    .context("AES decryption")
+            } else {
+                bail!("not implemented: AES256 w/o padding")
             }
-            let iv: [u8; IV_LEN] = value[..IV_LEN].try_into().expect("checked length");
-            let value = &value[IV_LEN..];
-            Aes256CbcDec::new(&k.into(), &iv.into())
-                .decrypt_padded_vec_mut::<Pkcs7>(value)
-                .map_err(|e| anyhow!("{e}"))
-                .context("AES decryption")
         }
     }
 }
