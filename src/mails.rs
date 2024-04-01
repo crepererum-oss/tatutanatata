@@ -88,15 +88,14 @@ impl Mail {
     ) -> Result<DownloadedMail> {
         let mail_details = get_mail_blob(client, session, &self.archive_id, &self.blob_id)
             .await
-            .context("download mail details")?;
-        let body = decrypt_value(
-            self.session_key,
-            mail_details.details.body.compressed_text.as_ref(),
-        )
-        .context("decrypt body")?;
+            .context("download mail details")?
+            .details;
+
+        let body = decrypt_value(self.session_key, mail_details.body.compressed_text.as_ref())
+            .context("decrypt body")?;
         let body = decompress_value(&body).context("decompress body")?;
 
-        let headers = if let Some(headers) = mail_details.details.headers {
+        let headers = if let Some(headers) = mail_details.headers {
             let headers = decrypt_value(self.session_key, headers.compressed_headers.as_ref())
                 .context("decrypt headers")?;
             let headers = decompress_value(&headers).context("decompress headers")?;
