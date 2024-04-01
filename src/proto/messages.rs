@@ -285,7 +285,7 @@ pub(crate) struct FileReponse {
     #[serde(rename = "_ownerGroup")]
     pub(crate) owner_group: String,
 
-    pub(crate) cid: Base64String,
+    pub(crate) cid: Option<Base64String>,
     pub(crate) mime_type: Base64String,
     pub(crate) name: Base64String,
     pub(crate) blobs: [FileBlob; 1],

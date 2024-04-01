@@ -146,9 +146,13 @@ impl Mail {
                 )
                 .context("decrypting file session key")?;
 
-                let cid = decrypt_value(session_key, file.cid.as_ref())
-                    .context("decrypt file content ID")?;
-                let cid = String::from_utf8(cid).context("decode cid")?;
+                let cid = if let Some(cid) = &file.cid {
+                    let cid = decrypt_value(session_key, cid).context("decrypt file content ID")?;
+                    let cid = String::from_utf8(cid).context("decode cid")?;
+                    Some(cid)
+                } else {
+                    None
+                };
 
                 let mime_type = decrypt_value(session_key, file.mime_type.as_ref())
                     .context("decrypt file mime type")?;
@@ -220,7 +224,7 @@ pub(crate) struct DownloadedMail {
 
 #[derive(Debug)]
 pub(crate) struct Attachment {
-    pub(crate) cid: String,
+    pub(crate) cid: Option<String>,
     pub(crate) mime_type: String,
     pub(crate) name: String,
     pub(crate) data: Vec<u8>,

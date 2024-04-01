@@ -52,7 +52,9 @@ pub(crate) fn emit_eml(mail: &DownloadedMail) -> Result<String> {
             "Content-Disposition: attachment; filename={}",
             utf8_header_value(&attachment.name)
         ));
-        lines.push(format!("Content-Id: <{}>", attachment.cid));
+        if let Some(cid) = &attachment.cid {
+            lines.push(format!("Content-Id: <{}>", cid));
+        }
         lines.push("".to_owned());
         write_chunked(
             &mut lines,
@@ -216,10 +218,7 @@ mod tests {
                 sender_name: "Me".to_owned(),
                 attachments: vec![],
             },
-            headers: Some(
-                "From: foo@example.com\nContent-Type: text/plain"
-                    .to_owned(),
-            ),
+            headers: Some("From: foo@example.com\nContent-Type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
         })
@@ -255,10 +254,7 @@ mod tests {
                 sender_name: "Me".to_owned(),
                 attachments: vec![],
             },
-            headers: Some(
-                "From: foo@example.com\ncontent-type: text/plain"
-                    .to_owned(),
-            ),
+            headers: Some("From: foo@example.com\ncontent-type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
         })
@@ -295,6 +291,7 @@ mod tests {
                 attachments: vec![
                     ["a".to_owned(), "b".to_owned()],
                     ["c".to_owned(), "d".to_owned()],
+                    ["e".to_owned(), "f".to_owned()],
                 ],
             },
             headers: Some(
@@ -304,16 +301,22 @@ mod tests {
             body: b"hello world".to_vec(),
             attachments: vec![
                 Attachment {
-                    cid: "cid001".to_owned(),
+                    cid: Some("cid001".to_owned()),
                     mime_type: "image/jpeg".to_owned(),
                     name: "föo.jpg".to_owned(),
                     data: b"foobar".to_vec(),
                 },
                 Attachment {
-                    cid: "cid002".to_owned(),
+                    cid: Some("cid002".to_owned()),
                     mime_type: "image/new".to_owned(),
                     name: "å".to_owned(),
                     data: b"x".to_vec(),
+                },
+                Attachment {
+                    cid: None,
+                    mime_type: "x/y".to_owned(),
+                    name: "something".to_owned(),
+                    data: b"xcddd".to_vec(),
                 },
             ],
         })
@@ -343,6 +346,13 @@ mod tests {
         Content-Id: <cid002>
 
         eA==
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: x/y; name==?UTF-8?B?c29tZXRoaW5n?=
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename==?UTF-8?B?c29tZXRoaW5n?=
+
+        eGNkZGQ=
 
         ------------79Bu5A16qPEYcVIZL@tutanota--
         "###);
