@@ -93,12 +93,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_build_auth_verifier() {
+    fn test_build_auth_verifier_bcrypt() {
         let pk = derive_passkey(KdfVersion::Bcrypt, "password", b"saltsaltsaltsalt").unwrap();
         let verifier = encode_auth_verifier(&pk);
         assert_eq!(
             verifier.to_string(),
             "r3YdONamUCQ7yFZwPFX8KLWZ4kKnAZLyt7rwi1DCE1I",
+        );
+    }
+
+    #[test]
+    fn test_build_auth_verifier_argon2id() {
+        let pk = derive_passkey(KdfVersion::Argon2id, "password", b"saltsaltsaltsalt").unwrap();
+        let verifier = encode_auth_verifier(&pk);
+        assert_eq!(
+            verifier.to_string(),
+            "4PBZ1KNEu2DB1OpKjqz8lRTIxq55ESO05TYmjLAQvM8",
         );
     }
 }
