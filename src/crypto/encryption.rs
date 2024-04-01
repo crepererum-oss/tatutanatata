@@ -17,17 +17,27 @@ type HmacSha256 = Hmac<Sha256>;
 const IV_LEN: usize = 16;
 
 pub(crate) fn decrypt_key(encryption_key: Key, key_to_be_decrypted: EncryptedKey) -> Result<Key> {
-    // add constant IV to encrypted data
-    let iv: [u8; IV_LEN] = [128u8 + 8; IV_LEN];
-    let mut data = Vec::with_capacity(key_to_be_decrypted.len() + iv.len());
-    data.extend_from_slice(&iv);
-    data.extend_from_slice(key_to_be_decrypted.as_ref());
+    let encrypted = match key_to_be_decrypted {
+        EncryptedKey::Aes128NoMac(_) | EncryptedKey::Aes256NoMac(_) => {
+            // add constant IV to encrypted data
+            let iv: [u8; IV_LEN] = [128u8 + 8; IV_LEN];
+            let mut data = Vec::with_capacity(key_to_be_decrypted.len() + iv.len());
+            data.extend_from_slice(&iv);
+            data.extend_from_slice(key_to_be_decrypted.as_ref());
+            data
+        }
+        EncryptedKey::Aes128WithMac(_) => key_to_be_decrypted.deref().to_vec(),
+    };
 
-    let decrypted = decrypt(encryption_key, &data, false)?;
+    let decrypted = decrypt(encryption_key, &encrypted, false)?;
 
-    match key_to_be_decrypted.deref() {
-        Key::Aes128(_) => Ok(Key::Aes128(decrypted.try_into().expect("checked length"))),
-        Key::Aes256(_) => Ok(Key::Aes256(decrypted.try_into().expect("checked length"))),
+    match key_to_be_decrypted {
+        EncryptedKey::Aes128NoMac(_) | EncryptedKey::Aes128WithMac(_) => {
+            Ok(Key::Aes128(decrypted.try_into().expect("checked length")))
+        }
+        EncryptedKey::Aes256NoMac(_) => {
+            Ok(Key::Aes256(decrypted.try_into().expect("checked length")))
+        }
     }
 }
 
@@ -86,7 +96,10 @@ fn decrypt(encryption_key: Key, value: &[u8], padding: bool) -> Result<Vec<u8>> 
                     .map_err(|e| anyhow!("{e}"))
                     .context("AES decryption")
             } else {
-                bail!("not implemented: AES256 w/o padding")
+                Aes256CbcDec::new(&k.into(), &iv.into())
+                    .decrypt_padded_vec_mut::<NoPadding>(value)
+                    .map_err(|e| anyhow!("{e}"))
+                    .context("AES decryption")
             }
         }
     }
@@ -133,9 +146,9 @@ mod tests {
         assert_eq!(
             decrypt_key(
                 Key::Aes128([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                EncryptedKey(Key::Aes128([
+                EncryptedKey::Aes128NoMac([
                     10u8, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160
-                ])),
+                ]),
             )
             .unwrap(),
             Key::Aes128([177u8, 11, 11, 117, 32, 75, 2, 15, 107, 230, 248, 94, 26, 11, 143, 0]),
@@ -144,12 +157,31 @@ mod tests {
         assert_eq!(
             decrypt_key(
                 Key::Aes128([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                EncryptedKey(Key::Aes256([42; 32])),
+                EncryptedKey::Aes256NoMac([42; 32]),
             )
             .unwrap(),
             Key::Aes256([
                 167, 228, 240, 83, 0, 221, 168, 213, 118, 210, 12, 226, 248, 24, 227, 195, 5, 70,
                 82, 241, 162, 127, 10, 119, 212, 112, 174, 64, 90, 186, 65, 97
+            ]),
+        );
+
+        assert_eq!(
+            decrypt_key(
+                Key::Aes256([
+                    168, 18, 253, 146, 180, 160, 144, 17, 181, 23, 153, 71, 126, 140, 5, 122, 189,
+                    109, 232, 217, 2, 26, 130, 137, 191, 228, 33, 13, 104, 18, 220, 192,
+                ],),
+                EncryptedKey::Aes128WithMac([
+                    1, 17, 85, 164, 64, 137, 179, 181, 108, 128, 157, 31, 215, 209, 169, 34, 71,
+                    106, 92, 19, 222, 85, 91, 120, 167, 37, 139, 139, 63, 55, 197, 186, 131, 158,
+                    16, 187, 224, 101, 41, 163, 91, 255, 170, 107, 37, 130, 217, 184, 167, 123, 31,
+                    117, 36, 126, 42, 124, 162, 56, 32, 42, 190, 47, 63, 245, 95,
+                ],)
+            )
+            .unwrap(),
+            Key::Aes128([
+                197, 71, 160, 239, 145, 155, 190, 41, 229, 171, 174, 235, 106, 199, 82, 100
             ]),
         );
     }
