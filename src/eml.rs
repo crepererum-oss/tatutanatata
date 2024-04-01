@@ -129,3 +129,160 @@ fn write_chunked(lines: &mut Vec<String>, s: &str) {
 fn utf8_header_value(s: &str) -> String {
     format!("=?UTF-8?B?{}?=", Base64String::from(s.as_bytes()))
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::DateTime;
+
+    use crate::{mails::Attachment, proto::keys::Key};
+
+    use super::*;
+
+    #[test]
+    fn test_simple() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender_mail: "foo@example.com".to_owned(),
+                sender_name: "Me".to_owned(),
+                attachments: vec![],
+            },
+            headers: Some(
+                "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
+                    .to_owned(),
+            ),
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: foo@example.com
+        Content-Type: multipart/related; boundary="myboundary"
+
+        --myboundary
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        --myboundary--
+        "###);
+    }
+
+    #[test]
+    fn test_attachments() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender_mail: "foo@example.com".to_owned(),
+                sender_name: "Me".to_owned(),
+                attachments: vec![
+                    ["a".to_owned(), "b".to_owned()],
+                    ["c".to_owned(), "d".to_owned()],
+                ],
+            },
+            headers: Some(
+                "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
+                    .to_owned(),
+            ),
+            body: b"hello world".to_vec(),
+            attachments: vec![
+                Attachment {
+                    cid: "cid001".to_owned(),
+                    mime_type: "image/jpeg".to_owned(),
+                    name: "föo.jpg".to_owned(),
+                    data: b"foobar".to_vec(),
+                },
+                Attachment {
+                    cid: "cid002".to_owned(),
+                    mime_type: "image/new".to_owned(),
+                    name: "å".to_owned(),
+                    data: b"x".to_vec(),
+                },
+            ],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: foo@example.com
+        Content-Type: multipart/related; boundary="myboundary"
+
+        --myboundary
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        --myboundary
+        Content-Type: image/jpeg; name==?UTF-8?B?ZsO2by5qcGc=?=
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename==?UTF-8?B?ZsO2by5qcGc=?=
+        Content-Id: <cid001>
+
+        Zm9vYmFy
+
+        --myboundary
+        Content-Type: image/new; name==?UTF-8?B?w6U=?=
+        Content-Transfer-Encoding: base64
+        Content-Disposition: attachment; filename==?UTF-8?B?w6U=?=
+        Content-Id: <cid002>
+
+        eA==
+
+        --myboundary--
+        "###);
+    }
+
+    #[test]
+    fn test_synthesize_headers() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender_mail: "foo@example.com".to_owned(),
+                sender_name: "Me".to_owned(),
+                attachments: vec![],
+            },
+            headers: None,
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: Me <foo@example.com>
+        MIME-Version: 1.0
+        Subject: =?UTF-8?B?SMOkbGzDtg==?=
+        Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        ------------79Bu5A16qPEYcVIZL@tutanota--
+        "###);
+    }
+}
