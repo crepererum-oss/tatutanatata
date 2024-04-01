@@ -22,8 +22,11 @@ pub(crate) struct Client {
 impl Client {
     pub(crate) fn try_new() -> Result<Self> {
         let inner = reqwest::Client::builder()
-            .min_tls_version(reqwest::tls::Version::TLS_1_3)
+            .hickory_dns(true)
+            .http2_adaptive_window(true)
             .http2_prior_knowledge()
+            .https_only(true)
+            .min_tls_version(reqwest::tls::Version::TLS_1_3)
             .user_agent(APP_USER_AGENT)
             .build()
             .context("set up HTTPs client")?;
