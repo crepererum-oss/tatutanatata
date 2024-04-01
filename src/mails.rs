@@ -91,15 +91,21 @@ impl Mail {
             .context("download mail details")?
             .details;
 
-        let body = decrypt_value(self.session_key, mail_details.body.compressed_text.as_ref())
-            .context("decrypt body")?;
-        let body = decompress_value(&body).context("decompress body")?;
+        let body = decrypt_and_decompress(
+            self.session_key,
+            mail_details.body.text.as_deref(),
+            mail_details.body.compressed_text.as_deref(),
+        )
+        .context("decode body")?;
 
         let headers = if let Some(headers) = mail_details.headers {
-            let headers = decrypt_value(self.session_key, headers.compressed_headers.as_ref())
-                .context("decrypt headers")?;
-            let headers = decompress_value(&headers).context("decompress headers")?;
-            let headers = String::from_utf8(headers).context("decode headers")?;
+            let headers = decrypt_and_decompress(
+                self.session_key,
+                headers.headers.as_deref(),
+                headers.compressed_headers.as_deref(),
+            )
+            .context("decode headers")?;
+            let headers = String::from_utf8(headers).context("decode headers string")?;
 
             Some(headers)
         } else {
@@ -180,6 +186,27 @@ impl Mail {
             body,
             attachments,
         })
+    }
+}
+
+fn decrypt_and_decompress(
+    encryption_key: Key,
+    plain: Option<&[u8]>,
+    compressed: Option<&[u8]>,
+) -> Result<Vec<u8>> {
+    match (plain, compressed) {
+        (Some(data), _) => {
+            let data = decrypt_value(encryption_key, data).context("decrypt")?;
+            Ok(data)
+        }
+        (None, Some(data)) => {
+            let data = decrypt_value(encryption_key, data).context("decrypt")?;
+            let data = decompress_value(&data).context("decompress")?;
+            Ok(data)
+        }
+        (None, None) => {
+            bail!("neither compressed or uncompressed data available")
+        }
     }
 }
 
