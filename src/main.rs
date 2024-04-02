@@ -145,7 +145,10 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                         let target_file = cfg.path.join(format!(
                             "{}-{}.eml",
                             mail.date.format("%Y-%m-%d-%Hh%Mm%Ss"),
-                            escape_file_string(&mail.subject),
+                            escape_file_string(&mail.subject)
+                                .chars()
+                                .take(64)
+                                .collect::<String>(),
                         ));
 
                         if tokio::fs::try_exists(&target_file)
