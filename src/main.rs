@@ -138,6 +138,9 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
 
                     async move {
                         let mail = mail.context("list mail")?;
+                        let folder_id = mail.folder_id.clone();
+                        let mail_id = mail.mail_id.clone();
+                        let ui_url = mail.ui_url();
 
                         let target_file = cfg.path.join(format!(
                             "{}-{}.eml",
@@ -149,13 +152,22 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                             .await
                             .context("check file existence")?
                         {
-                            info!(id = mail.mail_id.as_str(), "already exists");
+                            info!(
+                                folder_id = folder_id.as_str(),
+                                mail_id = mail_id.as_str(),
+                                "already exists",
+                            );
                         } else {
-                            info!(id = mail.mail_id.as_str(), "download");
+                            info!(
+                                folder_id = folder_id.as_str(),
+                                mail_id = mail_id.as_str(),
+                                "download",
+                            );
+
                             let mail = mail
                                 .download(client, session)
                                 .await
-                                .context("download mail")?;
+                                .with_context(|| format!("download mail (`{}`)", ui_url))?;
                             let eml = emit_eml(&mail).context("emit eml")?;
                             write_to_file(eml.as_bytes(), &target_file)
                                 .await

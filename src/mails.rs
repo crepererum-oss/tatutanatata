@@ -81,6 +81,10 @@ impl Mail {
         })
     }
 
+    pub(crate) fn ui_url(&self) -> String {
+        format!("{}/mail/{}/{}", DEFAULT_HOST, self.folder_id, self.mail_id)
+    }
+
     pub(crate) async fn download(
         self,
         client: &Client,
