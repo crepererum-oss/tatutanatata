@@ -42,6 +42,10 @@ pub(crate) fn decrypt_key(encryption_key: Key, key_to_be_decrypted: EncryptedKey
 }
 
 pub(crate) fn decrypt_value(encryption_key: Key, value: &[u8]) -> Result<Vec<u8>> {
+    if value.is_empty() {
+        return Ok(vec![]);
+    }
+
     decrypt(encryption_key, value, true)
 }
 
@@ -199,12 +203,12 @@ mod tests {
             117, 32, 158, 29, 154, 194, 98, 55, 215, 5, 129, 18, 13, 32, 165, 44, 185, 129, 14, 78,
             146, 134, 10, 134, 81, 50, 252, 212,
         ];
-
         assert_eq!(decrypt_value(k, &v,).unwrap(), b"fooooo".to_owned(),);
+
+        assert_eq!(decrypt_value(k, &[]).unwrap(), b"".to_owned());
 
         let mut v_broken = v;
         v_broken[1] = 0;
-
         assert_eq!(
             decrypt_value(k, &v_broken).unwrap_err().to_string(),
             "HMAC verification",

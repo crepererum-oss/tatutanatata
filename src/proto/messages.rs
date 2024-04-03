@@ -145,7 +145,7 @@ impl Entity for FolderResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct MailSender {
+pub(crate) struct MailAddress {
     pub(crate) address: String,
     pub(crate) name: Base64String,
 }
@@ -169,7 +169,7 @@ pub(crate) struct MailReponse {
 
     pub(crate) received_date: UnixDate,
     pub(crate) subject: Base64String,
-    pub(crate) sender: MailSender,
+    pub(crate) sender: MailAddress,
     pub(crate) attachments: Vec<[String; 2]>,
 }
 
@@ -248,6 +248,14 @@ pub(crate) struct MailHeaders {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct MailRecipients {
+    pub(crate) bcc_recipients: Vec<MailAddress>,
+    pub(crate) cc_recipients: Vec<MailAddress>,
+    pub(crate) to_recipients: Vec<MailAddress>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct MailDetails {
     pub(crate) body: MailBody,
 
@@ -255,6 +263,8 @@ pub(crate) struct MailDetails {
     ///
     /// These only appear for true emails, not for internal messages.
     pub(crate) headers: Option<MailHeaders>,
+
+    pub(crate) recipients: MailRecipients,
 }
 
 #[derive(Debug, Deserialize)]
