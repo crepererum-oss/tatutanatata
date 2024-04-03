@@ -102,14 +102,17 @@ impl Client {
         Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
-        let resp = self
+        let s = self
             .do_request(r)
             .await?
-            .json::<Resp>()
+            .text()
             .await
-            .context("fetch JSON response")?;
+            .context("fetch text response")?;
 
-        Ok(resp)
+        let jd = &mut serde_json::Deserializer::from_str(&s);
+        let res: Result<Resp, _> = serde_path_to_error::deserialize(jd);
+
+        res.with_context(|| format!("deserialize JSON for `{}`", std::any::type_name::<Resp>()))
     }
 
     pub(crate) async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
