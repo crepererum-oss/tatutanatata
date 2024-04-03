@@ -14,7 +14,7 @@ pub(crate) fn decompress_value(v: &[u8]) -> Result<Vec<u8>> {
             Err(lz4_flex::block::DecompressError::OutputTooSmall { expected, .. })
                 if expected > out_len =>
             {
-                out_len = expected;
+                out_len = expected.max(out_len.saturating_mul(2));
             }
             Err(e) => {
                 return Err(e).context("decompression");
