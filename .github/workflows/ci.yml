@@ -38,8 +38,16 @@ jobs:
       - name: cargo build
         run: cargo build --workspace --all-features
 
-      - name: cargo test
+      - name: cargo test (with integration tests)
         run: cargo test --all-features --workspace
+        if: '(env.TUTANOTA_CLI_USERNAME != null) && (env.TUTANOTA_CLI_PASSWORD != null)'
+        env:
+          TUTANOTA_CLI_USERNAME: ${{ secrets.TUTANOTA_CLI_USERNAME }}
+          TUTANOTA_CLI_PASSWORD: ${{ secrets.TUTANOTA_CLI_PASSWORD }}
+
+      - name: cargo test (NO integration tests)
+        run: cargo test --all-features --workspace -- --skip integration
+        if: '!((env.TUTANOTA_CLI_USERNAME != null) && (env.TUTANOTA_CLI_PASSWORD != null))'
         env:
           TUTANOTA_CLI_USERNAME: ${{ secrets.TUTANOTA_CLI_USERNAME }}
           TUTANOTA_CLI_PASSWORD: ${{ secrets.TUTANOTA_CLI_PASSWORD }}
