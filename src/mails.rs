@@ -13,10 +13,28 @@ use crate::{
     folders::Folder,
     proto::{
         keys::Key,
-        messages::{FileReponse, MailReponse},
+        messages::{FileReponse, MailAddress, MailReponse},
     },
     session::{GroupKeys, Session},
 };
+
+#[derive(Debug)]
+pub(crate) struct Address {
+    pub(crate) mail: String,
+    pub(crate) name: String,
+}
+
+impl Address {
+    fn decode(addr: MailAddress, session_key: Key) -> Result<Self> {
+        let name = decrypt_value(session_key, &addr.name).context("decrypt name")?;
+        let name = String::from_utf8(name).context("decode name string")?;
+
+        Ok(Self {
+            mail: addr.address,
+            name,
+        })
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct Mail {
@@ -28,8 +46,7 @@ pub(crate) struct Mail {
     pub(crate) session_key: Key,
     pub(crate) date: DateTime<Utc>,
     pub(crate) subject: String,
-    pub(crate) sender_mail: String,
-    pub(crate) sender_name: String,
+    pub(crate) sender: Address,
     pub(crate) attachments: Vec<[String; 2]>,
 }
 
@@ -63,9 +80,7 @@ impl Mail {
         let subject = decrypt_value(session_key, &resp.subject).context("decrypt subject")?;
         let subject = String::from_utf8(subject).context("decode string")?;
 
-        let sender_name =
-            decrypt_value(session_key, &resp.sender.name).context("decrypt subject")?;
-        let sender_name = String::from_utf8(sender_name).context("decode sender name")?;
+        let sender = Address::decode(resp.sender, session_key).context("decode sender")?;
 
         Ok(Self {
             folder_id: resp.id[0].clone(),
@@ -75,8 +90,7 @@ impl Mail {
             session_key,
             date: resp.received_date.0,
             subject,
-            sender_mail: resp.sender.address,
-            sender_name,
+            sender,
             attachments: resp.attachments,
         })
     }
@@ -115,6 +129,28 @@ impl Mail {
         } else {
             None
         };
+
+        let bcc = mail_details
+            .recipients
+            .bcc_recipients
+            .into_iter()
+            .map(|addr| Address::decode(addr, self.session_key))
+            .collect::<Result<Vec<_>>>()
+            .context("decode BCC")?;
+        let cc = mail_details
+            .recipients
+            .cc_recipients
+            .into_iter()
+            .map(|addr| Address::decode(addr, self.session_key))
+            .collect::<Result<Vec<_>>>()
+            .context("decode CC")?;
+        let to = mail_details
+            .recipients
+            .to_recipients
+            .into_iter()
+            .map(|addr| Address::decode(addr, self.session_key))
+            .collect::<Result<Vec<_>>>()
+            .context("decode To")?;
 
         let mut attachments = vec![];
         if !self.attachments.is_empty() {
@@ -193,6 +229,9 @@ impl Mail {
             headers,
             body,
             attachments,
+            bcc,
+            cc,
+            to,
         })
     }
 }
@@ -224,6 +263,9 @@ pub(crate) struct DownloadedMail {
     pub(crate) headers: Option<String>,
     pub(crate) body: Vec<u8>,
     pub(crate) attachments: Vec<Attachment>,
+    pub(crate) bcc: Vec<Address>,
+    pub(crate) cc: Vec<Address>,
+    pub(crate) to: Vec<Address>,
 }
 
 #[derive(Debug)]
