@@ -5,7 +5,22 @@ pub(crate) fn decompress_value(v: &[u8]) -> Result<Vec<u8>> {
         return Ok(vec![]);
     }
 
-    lz4_flex::block::decompress(v, v.len() * 12).context("decompression")
+    let mut out_len = v.len() * 6;
+    loop {
+        match lz4_flex::block::decompress(v, out_len) {
+            Ok(out) => {
+                return Ok(out);
+            }
+            Err(lz4_flex::block::DecompressError::OutputTooSmall { expected, .. })
+                if expected > out_len =>
+            {
+                out_len = expected;
+            }
+            Err(e) => {
+                return Err(e).context("decompression");
+            }
+        }
+    }
 }
 
 #[cfg(test)]
