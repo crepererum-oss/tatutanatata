@@ -1,10 +1,10 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, future::Future, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures::Stream;
-use reqwest::{Method, Response};
+use reqwest::{Method, Response, StatusCode};
 use serde::de::DeserializeOwned;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{
     constants::APP_USER_AGENT,
@@ -102,12 +102,7 @@ impl Client {
         Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
-        let s = self
-            .do_request(r)
-            .await?
-            .text()
-            .await
-            .context("fetch text response")?;
+        let s = retry(|| async { self.do_request(r.clone()).await?.text().await }).await?;
 
         let jd = &mut serde_json::Deserializer::from_str(&s);
         let res: Result<Resp, _> = serde_path_to_error::deserialize(jd);
@@ -115,7 +110,25 @@ impl Client {
         res.with_context(|| format!("deserialize JSON for `{}`", std::any::type_name::<Resp>()))
     }
 
-    pub(crate) async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
+    pub(crate) async fn do_bytes<Req>(&self, r: Request<'_, Req>) -> Result<Vec<u8>>
+    where
+        Req: serde::Serialize + Sync,
+    {
+        let b = retry(|| async { self.do_request(r.clone()).await?.bytes().await }).await?;
+
+        Ok(b.to_vec())
+    }
+
+    pub(crate) async fn do_no_response<Req>(&self, r: Request<'_, Req>) -> Result<()>
+    where
+        Req: serde::Serialize + Sync,
+    {
+        retry(|| async { self.do_request(r.clone()).await }).await?;
+
+        Ok(())
+    }
+
+    async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response, reqwest::Error>
     where
         Req: serde::Serialize + Sync,
     {
@@ -142,10 +155,8 @@ impl Client {
             .json(data)
             .query(query)
             .send()
-            .await
-            .context("initial request")?
-            .error_for_status()
-            .context("return status")?;
+            .await?
+            .error_for_status()?;
 
         Ok(resp)
     }
@@ -201,4 +212,56 @@ where
             query: &[],
         }
     }
+}
+
+impl<'a, Req> Clone for Request<'a, Req>
+where
+    Req: serde::Serialize + Sync,
+{
+    fn clone(&self) -> Self {
+        Self {
+            method: self.method.clone(),
+            host: self.host,
+            prefix: self.prefix,
+            path: self.path,
+            data: self.data,
+            access_token: self.access_token,
+            query: self.query,
+        }
+    }
+}
+
+async fn retry<F, Fut, T>(action: F) -> Result<T, reqwest::Error>
+where
+    F: Fn() -> Fut + Send,
+    Fut: Future<Output = Result<T, reqwest::Error>> + Send,
+{
+    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(500)
+        .map(tokio_retry::strategy::jitter);
+
+    let condition = |e: &reqwest::Error| {
+        if e.is_connect() || e.is_timeout() {
+            return true;
+        }
+
+        if let Some(status) = e.status() {
+            if status.is_server_error()
+                || (status == StatusCode::REQUEST_TIMEOUT)
+                || (status == StatusCode::TOO_MANY_REQUESTS)
+            {
+                return true;
+            }
+        }
+
+        false
+    };
+    let condition = move |e: &reqwest::Error| {
+        let should_retry = condition(e);
+        if should_retry {
+            warn!(%e, "retry client error");
+        }
+        should_retry
+    };
+
+    tokio_retry::RetryIf::spawn(strategy, action, condition).await
 }

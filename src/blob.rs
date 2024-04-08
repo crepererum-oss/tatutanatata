@@ -72,7 +72,7 @@ pub(crate) async fn get_attachment_blob(
     .context("get blob access")?;
 
     let data = client
-        .do_request(Request {
+        .do_bytes(Request {
             method: Method::GET,
             host: &access.server_url,
             prefix: Prefix::Storage,
@@ -95,10 +95,7 @@ pub(crate) async fn get_attachment_blob(
             ],
         })
         .await
-        .context("blob download")?
-        .bytes()
-        .await
-        .context("download blob")?;
+        .context("blob download")?;
 
     Ok(data.to_vec())
 }
