@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 
 use crate::{
@@ -138,11 +138,9 @@ fn remove_content_type(headers: Vec<String>) -> Result<Vec<String>> {
 
     let mut out = Vec::with_capacity(headers.len());
     let mut in_content_type = false;
-    let mut found_content_type = false;
     for header in headers {
         if content_type_re.is_match(&header) {
             in_content_type = true;
-            found_content_type = true;
             // skip
         } else if in_content_type && start_with_spaces_re.is_match(&header) {
             // skip
@@ -153,9 +151,6 @@ fn remove_content_type(headers: Vec<String>) -> Result<Vec<String>> {
         }
     }
 
-    if !found_content_type {
-        bail!("content type header not found");
-    }
     Ok(out)
 }
 
@@ -355,6 +350,48 @@ mod tests {
         From: foo@example.com
         Foo: bar
         Foo2: bar2
+        Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        ------------79Bu5A16qPEYcVIZL@tutanota--
+        "###);
+    }
+
+    #[test]
+    fn test_content_type_missing() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Arc::new(Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
+                attachments: vec![],
+            }),
+            headers: Some("From: foo@example.com\nFoo: bar".to_owned()),
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: foo@example.com
+        Foo: bar
         Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
 
         ------------79Bu5A16qPEYcVIZL@tutanota
