@@ -55,7 +55,7 @@ impl Mail {
         client: &Client,
         session: &Session,
         folder: &Folder,
-    ) -> impl Stream<Item = Result<Self>> {
+    ) -> impl Stream<Item = Result<Arc<Self>>> {
         let group_keys = Arc::clone(&session.group_keys);
         client
             .stream::<MailReponse>(
@@ -64,7 +64,10 @@ impl Mail {
             )
             .and_then(move |m| {
                 let group_keys = Arc::clone(&group_keys);
-                async move { Self::decode(m, &group_keys) }
+                async move {
+                    let mail = Self::decode(m, &group_keys)?;
+                    Ok(Arc::new(mail))
+                }
             })
     }
 
@@ -100,7 +103,7 @@ impl Mail {
     }
 
     pub(crate) async fn download(
-        self,
+        self: Arc<Self>,
         client: &Client,
         session: &Session,
     ) -> Result<DownloadedMail> {
@@ -259,7 +262,7 @@ fn decrypt_and_decompress(
 
 #[derive(Debug)]
 pub(crate) struct DownloadedMail {
-    pub(crate) mail: Mail,
+    pub(crate) mail: Arc<Mail>,
     pub(crate) headers: Option<String>,
     pub(crate) body: Vec<u8>,
     pub(crate) attachments: Vec<Attachment>,
