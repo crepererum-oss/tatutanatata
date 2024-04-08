@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     client::Client,
@@ -138,9 +138,6 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
 
                     async move {
                         let mail = mail.context("list mail")?;
-                        let folder_id = mail.folder_id.clone();
-                        let mail_id = mail.mail_id.clone();
-                        let ui_url = mail.ui_url();
 
                         let target_file = cfg.path.join(format!(
                             "{}-{}.eml",
@@ -156,25 +153,32 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                             .context("check file existence")?
                         {
                             info!(
-                                folder_id = folder_id.as_str(),
-                                mail_id = mail_id.as_str(),
+                                folder_id = mail.folder_id.as_str(),
+                                mail_id = mail.mail_id.as_str(),
+                                target_file = %target_file.display(),
+                                ui_url = mail.ui_url().as_str(),
                                 "already exists",
                             );
                         } else {
                             info!(
-                                folder_id = folder_id.as_str(),
-                                mail_id = mail_id.as_str(),
+                                folder_id = mail.folder_id.as_str(),
+                                mail_id = mail.mail_id.as_str(),
+                                target_file = %target_file.display(),
+                                ui_url = mail.ui_url().as_str(),
                                 "download",
                             );
 
-                            let mail = mail
+                            let mail = Arc::clone(&mail)
                                 .download(client, session)
                                 .await
-                                .with_context(|| format!("download mail (`{}`)", ui_url))?;
+                                .with_context(|| format!("download mail: `{}`", mail.ui_url()))?;
+
                             let eml = emit_eml(&mail).context("emit eml")?;
                             write_to_file(eml.as_bytes(), &target_file)
                                 .await
-                                .context("write output file")?;
+                                .with_context(|| {
+                                    format!("write output file: `{}`", target_file.display())
+                                })?;
                         }
 
                         Ok(()) as Result<()>

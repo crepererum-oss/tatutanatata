@@ -184,6 +184,8 @@ fn utf8_header_value(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use chrono::DateTime;
 
     use crate::{
@@ -196,7 +198,7 @@ mod tests {
     #[test]
     fn test_simple() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -211,7 +213,7 @@ mod tests {
                     name: "Me".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
                     .to_owned(),
@@ -240,7 +242,7 @@ mod tests {
     #[test]
     fn test_plain_email() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -255,7 +257,7 @@ mod tests {
                     name: "Me".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: Some("From: foo@example.com\nContent-Type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
@@ -281,7 +283,7 @@ mod tests {
     #[test]
     fn test_content_type_lower_case() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -296,7 +298,7 @@ mod tests {
                     name: "Me".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: Some("From: foo@example.com\ncontent-type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
@@ -322,7 +324,7 @@ mod tests {
     #[test]
     fn test_content_type_multi_line() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -337,7 +339,7 @@ mod tests {
                     name: "Me".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related;\n\tboundary=\"myboundary\"\nFoo: bar\nContent-Type: text/plain\nFoo2: bar2"
                     .to_owned(),
@@ -368,7 +370,7 @@ mod tests {
     #[test]
     fn test_attachments() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -387,7 +389,7 @@ mod tests {
                     ["c".to_owned(), "d".to_owned()],
                     ["e".to_owned(), "f".to_owned()],
                 ],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
                     .to_owned(),
@@ -458,7 +460,7 @@ mod tests {
     #[test]
     fn test_synthesize_headers_minimal() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -473,7 +475,7 @@ mod tests {
                     name: "Mé".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: None,
             body: b"hello world".to_vec(),
             attachments: vec![],
@@ -501,7 +503,7 @@ mod tests {
     #[test]
     fn test_synthesize_headers_to_all() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
@@ -516,7 +518,7 @@ mod tests {
                     name: "Mé".to_owned(),
                 },
                 attachments: vec![],
-            },
+            }),
             headers: None,
             body: b"hello world".to_vec(),
             attachments: vec![],
