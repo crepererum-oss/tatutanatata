@@ -173,7 +173,8 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                                 .await
                                 .with_context(|| format!("download mail: `{}`", mail.ui_url()))?;
 
-                            let eml = emit_eml(&mail).context("emit eml")?;
+                            let eml = emit_eml(&mail)
+                                .with_context(|| format!("emit eml: `{}`", mail.mail.ui_url()))?;
                             write_to_file(eml.as_bytes(), &target_file)
                                 .await
                                 .with_context(|| {
