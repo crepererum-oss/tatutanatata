@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 aes = "0.8.4"
-anyhow = "1.0.81"
+anyhow = "1.0.82"
 argon2 = "0.5.3"
 base64 = "0.22.0"
 bcrypt = "0.15.1"
