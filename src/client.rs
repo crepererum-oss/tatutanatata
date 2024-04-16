@@ -1,9 +1,13 @@
-use std::{collections::VecDeque, future::Future, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures::Stream;
 use reqwest::{Method, Response, StatusCode};
 use serde::de::DeserializeOwned;
+use tokio::{
+    sync::mpsc::{channel, Receiver},
+    task::JoinSet,
+};
 use tracing::{debug, warn};
 
 use crate::{
@@ -12,6 +16,7 @@ use crate::{
 };
 
 const STREAM_BATCH_SIZE: u64 = 1000;
+const STREAM_BUFFER_SIZE: u64 = 4 * STREAM_BATCH_SIZE;
 pub(crate) const DEFAULT_HOST: &str = "https://app.tuta.com";
 
 #[derive(Debug, Clone)]
@@ -40,60 +45,72 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> impl Stream<Item = Result<Resp>>
     where
-        Resp: DeserializeOwned + Entity,
+        Resp: DeserializeOwned + Entity + Send + 'static,
     {
-        let state = StreamState {
-            buffer: VecDeque::default(),
-            next_start: "------------".to_owned(),
-        };
+        let (tx, rx) = channel(STREAM_BUFFER_SIZE as usize);
+
         let path = Arc::new(path.to_owned());
         let access_token = Arc::new(access_token.cloned());
         let this = self.clone();
+        let mut fetch_task = JoinSet::new();
+        fetch_task.spawn(async move {
+            let mut next_start = "------------".to_owned();
 
-        futures::stream::try_unfold(state, move |mut state: StreamState<Resp>| {
-            let path = Arc::clone(&path);
-            let access_token = Arc::clone(&access_token);
-            let this = this.clone();
-            async move {
-                loop {
-                    if let Some(next) = state.buffer.pop_front() {
-                        return Ok(Some((next, state)));
+            loop {
+                debug!(
+                    path = path.as_str(),
+                    start = next_start.as_str(),
+                    "fetch new page",
+                );
+
+                let res = this
+                    .do_json::<(), Vec<Resp>>(Request {
+                        method: Method::GET,
+                        host: DEFAULT_HOST,
+                        prefix: Prefix::Tutanota,
+                        path: &path,
+                        data: &(),
+                        access_token: access_token.as_ref().as_ref(),
+                        query: &[
+                            ("start", &next_start),
+                            ("count", &STREAM_BATCH_SIZE.to_string()),
+                            ("reverse", "false"),
+                        ],
+                    })
+                    .await
+                    .context("fetch next page");
+
+                match res {
+                    Ok(elements) => {
+                        match elements.last() {
+                            None => {
+                                // reached end
+                                return;
+                            }
+                            Some(o) => {
+                                next_start = o.id().to_owned();
+                            }
+                        }
+
+                        for o in elements {
+                            if tx.send(Ok(o)).await.is_err() {
+                                // receiver gone
+                                return;
+                            }
+                        }
                     }
-
-                    // buffer empty
-                    debug!(
-                        path = path.as_str(),
-                        start = state.next_start.as_str(),
-                        "fetch new page",
-                    );
-                    state.buffer = this
-                        .do_json::<(), Vec<Resp>>(Request {
-                            method: Method::GET,
-                            host: DEFAULT_HOST,
-                            prefix: Prefix::Tutanota,
-                            path: &path,
-                            data: &(),
-                            access_token: access_token.as_ref().as_ref(),
-                            query: &[
-                                ("start", &state.next_start),
-                                ("count", &STREAM_BATCH_SIZE.to_string()),
-                                ("reverse", "false"),
-                            ],
-                        })
-                        .await
-                        .context("fetch next page")?
-                        .into();
-                    match state.buffer.back() {
-                        None => {
-                            // reached end
-                            return Ok(None);
-                        }
-                        Some(o) => {
-                            state.next_start = o.id().to_owned();
-                        }
+                    Err(e) => {
+                        // it's OK if the receiver is gone, we exit anyways
+                        tx.send(Err(e)).await.ok();
+                        return;
                     }
                 }
             }
+        });
+        let state = StreamState { rx, fetch_task };
+
+        futures::stream::unfold(state, move |mut state: StreamState<Resp>| async move {
+            state.rx.recv().await.map(|next| (next, state))
         })
     }
 
@@ -163,8 +180,9 @@ impl Client {
 }
 
 struct StreamState<T> {
-    buffer: VecDeque<T>,
-    next_start: String,
+    rx: Receiver<Result<T>>,
+    #[allow(dead_code)]
+    fetch_task: JoinSet<()>,
 }
 
 #[derive(Debug, Clone, Copy)]
