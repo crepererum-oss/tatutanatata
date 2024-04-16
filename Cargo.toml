@@ -11,7 +11,7 @@ argon2 = "0.5.3"
 base64 = "0.22.0"
 bcrypt = "0.15.1"
 cbc = { version = "0.1.2", features = ["alloc"] }
-chrono = "0.4.37"
+chrono = "0.4.38"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3.28"
