@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 aes = "0.8.4"
 anyhow = "1.0.82"
 argon2 = "0.5.3"
-base64 = "0.22.0"
+base64 = "0.22.1"
 bcrypt = "0.15.1"
 cbc = { version = "0.1.2", features = ["alloc"] }
 chrono = "0.4.38"
