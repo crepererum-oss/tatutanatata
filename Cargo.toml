@@ -37,9 +37,9 @@ similar-asserts = "1.5.0"
 tempfile = "3"
 
 [lints.rust]
+rust_2018_idioms = { level ="deny", priority = -1 }
 missing_copy_implementations = "deny"
 missing_debug_implementations = "deny"
-rust_2018_idioms = "deny"
 unreachable_pub = "deny"
 unused_crate_dependencies = "deny"
 
