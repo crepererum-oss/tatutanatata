@@ -88,7 +88,7 @@ impl Client {
                                 return;
                             }
                             Some(o) => {
-                                next_start = o.id().to_owned();
+                                o.id().to_owned().clone_into(&mut next_start);
                             }
                         }
 
