@@ -203,48 +203,48 @@ mod tests {
 
     #[test]
     fn test_roundtrip_kdf_version() {
-        assert_roundtrip(KdfVersion::Bcrypt);
-        assert_roundtrip(KdfVersion::Argon2id);
+        assert_roundtrip(KdfVersion::Bcrypt, r#""0""#);
+        assert_roundtrip(KdfVersion::Argon2id, r#""1""#);
 
         assert_deser_error::<KdfVersion>(r#""2""#, "invalid KDF version: 2");
     }
 
     #[test]
     fn test_roundtrip_group_type() {
-        assert_roundtrip(GroupType::User);
-        assert_roundtrip(GroupType::Admin);
-        assert_roundtrip(GroupType::MailingList);
-        assert_roundtrip(GroupType::Customer);
-        assert_roundtrip(GroupType::External);
-        assert_roundtrip(GroupType::Mail);
-        assert_roundtrip(GroupType::Contact);
-        assert_roundtrip(GroupType::File);
-        assert_roundtrip(GroupType::LocalAdmin);
-        assert_roundtrip(GroupType::Calendar);
-        assert_roundtrip(GroupType::Template);
-        assert_roundtrip(GroupType::ContactList);
+        assert_roundtrip(GroupType::User, r#""0""#);
+        assert_roundtrip(GroupType::Admin, r#""1""#);
+        assert_roundtrip(GroupType::MailingList, r#""2""#);
+        assert_roundtrip(GroupType::Customer, r#""3""#);
+        assert_roundtrip(GroupType::External, r#""4""#);
+        assert_roundtrip(GroupType::Mail, r#""5""#);
+        assert_roundtrip(GroupType::Contact, r#""6""#);
+        assert_roundtrip(GroupType::File, r#""7""#);
+        assert_roundtrip(GroupType::LocalAdmin, r#""8""#);
+        assert_roundtrip(GroupType::Calendar, r#""9""#);
+        assert_roundtrip(GroupType::Template, r#""10""#);
+        assert_roundtrip(GroupType::ContactList, r#""11""#);
 
         assert_deser_error::<GroupType>(r#""20""#, "invalid group type: 20");
     }
 
     #[test]
     fn test_roundtrip_mail_folder_type() {
-        assert_roundtrip(MailFolderType::Custom);
-        assert_roundtrip(MailFolderType::Inbox);
-        assert_roundtrip(MailFolderType::Sent);
-        assert_roundtrip(MailFolderType::Trash);
-        assert_roundtrip(MailFolderType::Archive);
-        assert_roundtrip(MailFolderType::Spam);
-        assert_roundtrip(MailFolderType::Draft);
+        assert_roundtrip(MailFolderType::Custom, r#""0""#);
+        assert_roundtrip(MailFolderType::Inbox, r#""1""#);
+        assert_roundtrip(MailFolderType::Sent, r#""2""#);
+        assert_roundtrip(MailFolderType::Trash, r#""3""#);
+        assert_roundtrip(MailFolderType::Archive, r#""4""#);
+        assert_roundtrip(MailFolderType::Spam, r#""5""#);
+        assert_roundtrip(MailFolderType::Draft, r#""6""#);
 
         assert_deser_error::<MailFolderType>(r#""20""#, "invalid mail folder type: 20");
     }
 
     #[test]
     fn test_roundtrip_archive_data_type() {
-        assert_roundtrip(ArchiveDataType::AuthorityRequests);
-        assert_roundtrip(ArchiveDataType::Attachments);
-        assert_roundtrip(ArchiveDataType::MailDetails);
+        assert_roundtrip(ArchiveDataType::AuthorityRequests, r#""0""#);
+        assert_roundtrip(ArchiveDataType::Attachments, r#""1""#);
+        assert_roundtrip(ArchiveDataType::MailDetails, r#""2""#);
 
         assert_deser_error::<ArchiveDataType>(r#""20""#, "invalid archive data type: 20");
     }

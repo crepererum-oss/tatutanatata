@@ -37,7 +37,10 @@ mod tests {
 
     #[test]
     fn test_unix_date_roundtrip() {
-        assert_roundtrip(UnixDate(DateTime::from_timestamp_millis(1337).unwrap()));
+        assert_roundtrip(
+            UnixDate(DateTime::from_timestamp_millis(1337).unwrap()),
+            r#""1337""#,
+        );
 
         assert_deser_error::<UnixDate>(
             &format!(r#""{}""#, i64::MIN),

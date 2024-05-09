@@ -184,13 +184,13 @@ mod tests {
 
     #[test]
     fn test_roundtrip_base64string() {
-        assert_roundtrip(Base64String::from(b""));
-        assert_roundtrip(Base64String::from(b"foo"));
+        assert_roundtrip(Base64String::from(b""), r#""""#);
+        assert_roundtrip(Base64String::from(b"foo"), r#""Zm9v""#);
     }
 
     #[test]
     fn test_roundtrip_base64url() {
-        assert_roundtrip(Base64Url::from(b""));
-        assert_roundtrip(Base64Url::from(b"foo"));
+        assert_roundtrip(Base64Url::from(b""), r#""""#);
+        assert_roundtrip(Base64Url::from(b"foo"), r#""Zm9v""#);
     }
 }
