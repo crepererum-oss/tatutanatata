@@ -90,7 +90,7 @@ impl<'de> serde::Deserialize<'de> for Base64String {
 pub(crate) struct Base64Url(Base64String);
 
 impl Base64Url {
-    pub(crate) fn try_new(s: &str) -> Result<Self> {
+    fn try_new(s: &str) -> Result<Self> {
         let mut s = s.replace('-', "+").replace('_', "/");
         match s.len() % 4 {
             0 => {}
@@ -107,7 +107,7 @@ impl Base64Url {
         Ok(Self(Base64String::try_new(&s)?))
     }
 
-    pub(crate) fn url(&self) -> String {
+    fn url(&self) -> String {
         self.0
             .base64()
             .replace('+', "-")
@@ -192,5 +192,11 @@ mod tests {
     fn test_roundtrip_base64url() {
         assert_roundtrip(Base64Url::from(b""), r#""""#);
         assert_roundtrip(Base64Url::from(b"foo"), r#""Zm9v""#);
+        assert_roundtrip(Base64Url::from([0]), r#""AA""#);
+        assert_roundtrip(Base64Url::from([0, 0]), r#""AAA""#);
+        assert_roundtrip(Base64Url::from([248]), r#""-A""#);
+        assert_roundtrip(Base64Url::from([252]), r#""_A""#);
+        assert_roundtrip(Base64Url::from([255, 0]), r#""_wA""#);
+        assert_roundtrip(Base64Url::from([255, 255, 0]), r#""__8A""#);
     }
 }
