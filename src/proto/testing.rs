@@ -1,11 +1,19 @@
 #[track_caller]
-pub(crate) fn assert_roundtrip<T>(orig: T)
+pub(crate) fn assert_roundtrip<T>(orig: T, serialized: &'static str)
 where
     T: Eq + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
 {
     let s = serde_json::to_string(&orig).expect("serialize");
+    assert!(
+        s == serialized,
+        "Serialized mismatched:\n\nActual:\n{s}\n\nExpected:\n{serialized}"
+    );
+
     let recovered = serde_json::from_str(&s).expect("deserialize");
-    assert_eq!(orig, recovered);
+    assert!(
+        orig == recovered,
+        "Restored value mismatched:\n\nActual:\n{recovered:#?}\n\nExpected:\n{orig:#?}"
+    );
 }
 
 #[track_caller]
@@ -24,13 +32,19 @@ mod tests {
 
     #[test]
     fn test_assert_roundtrip_ok() {
-        assert_roundtrip(Helper(1));
+        assert_roundtrip(Helper(1), "1");
     }
 
     #[test]
-    #[should_panic(expected = "assertion")]
-    fn test_assert_roundtrip_fail() {
-        assert_roundtrip(Helper(100));
+    #[should_panic(expected = "Serialized mismatched:")]
+    fn test_assert_roundtrip_fail_serialied() {
+        assert_roundtrip(Helper(100), "0");
+    }
+
+    #[test]
+    #[should_panic(expected = "Restored value mismatched:")]
+    fn test_assert_roundtrip_fail_restored() {
+        assert_roundtrip(Helper(100), "100");
     }
 
     #[test]

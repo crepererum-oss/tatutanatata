@@ -48,10 +48,10 @@ mod tests {
 
     #[test]
     fn test_roundtrip_format() {
-        assert_roundtrip(Format::<0>);
-        assert_roundtrip(Format::<1>);
-        assert_roundtrip(Format::<2>);
-        assert_roundtrip(Format::<255>);
+        assert_roundtrip(Format::<0>, r#""0""#);
+        assert_roundtrip(Format::<1>, r#""1""#);
+        assert_roundtrip(Format::<2>, r#""2""#);
+        assert_roundtrip(Format::<255>, r#""255""#);
 
         assert_deser_error::<Format<1>>(r#""0""#, "invalid format: 0");
     }

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use base64::prelude::*;
 use serde::{de::Error, Deserializer, Serializer};
 use std::ops::Deref;
@@ -7,12 +7,7 @@ use std::ops::Deref;
 pub(crate) struct Base64String(Box<[u8]>);
 
 impl Base64String {
-    pub(crate) fn try_new(s: &str) -> Result<Self> {
-        let data = BASE64_STANDARD.decode(s)?;
-        Ok(Self(data.into()))
-    }
-
-    pub(crate) fn base64(&self) -> String {
+    fn base64(&self) -> String {
         BASE64_STANDARD.encode(self.0.as_ref())
     }
 }
@@ -82,37 +77,17 @@ impl<'de> serde::Deserialize<'de> for Base64String {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_new(&s).map_err(D::Error::custom)
+        let data = BASE64_STANDARD.decode(s).map_err(D::Error::custom)?;
+        Ok(Self(data.into()))
     }
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Base64Url(Base64String);
+pub(crate) struct Base64Url(Box<[u8]>);
 
 impl Base64Url {
-    pub(crate) fn try_new(s: &str) -> Result<Self> {
-        let mut s = s.replace('-', "+").replace('_', "/");
-        match s.len() % 4 {
-            0 => {}
-            2 => {
-                s.push_str("==");
-            }
-            3 => {
-                s.push('=');
-            }
-            _ => {
-                bail!("invalid base64 URL")
-            }
-        }
-        Ok(Self(Base64String::try_new(&s)?))
-    }
-
-    pub(crate) fn url(&self) -> String {
-        self.0
-            .base64()
-            .replace('+', "-")
-            .replace('/', "_")
-            .replace('=', "")
+    fn url(&self) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(self.0.as_ref())
     }
 }
 
@@ -173,7 +148,8 @@ impl<'de> serde::Deserialize<'de> for Base64Url {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_new(&s).map_err(D::Error::custom)
+        let data = BASE64_URL_SAFE_NO_PAD.decode(s).map_err(D::Error::custom)?;
+        Ok(Self(data.into()))
     }
 }
 
@@ -184,13 +160,19 @@ mod tests {
 
     #[test]
     fn test_roundtrip_base64string() {
-        assert_roundtrip(Base64String::from(b""));
-        assert_roundtrip(Base64String::from(b"foo"));
+        assert_roundtrip(Base64String::from(b""), r#""""#);
+        assert_roundtrip(Base64String::from(b"foo"), r#""Zm9v""#);
     }
 
     #[test]
     fn test_roundtrip_base64url() {
-        assert_roundtrip(Base64Url::from(b""));
-        assert_roundtrip(Base64Url::from(b"foo"));
+        assert_roundtrip(Base64Url::from(b""), r#""""#);
+        assert_roundtrip(Base64Url::from(b"foo"), r#""Zm9v""#);
+        assert_roundtrip(Base64Url::from([0]), r#""AA""#);
+        assert_roundtrip(Base64Url::from([0, 0]), r#""AAA""#);
+        assert_roundtrip(Base64Url::from([248]), r#""-A""#);
+        assert_roundtrip(Base64Url::from([252]), r#""_A""#);
+        assert_roundtrip(Base64Url::from([255, 0]), r#""_wA""#);
+        assert_roundtrip(Base64Url::from([255, 255, 0]), r#""__8A""#);
     }
 }

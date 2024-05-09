@@ -129,9 +129,18 @@ mod tests {
 
     #[test]
     fn test_roundtrip_encrypted_key() {
-        assert_roundtrip(EncryptedKey::Aes128NoMac([42; 16]));
-        assert_roundtrip(EncryptedKey::Aes128WithMac([42; 65]));
-        assert_roundtrip(EncryptedKey::Aes256NoMac([42; 32]));
+        assert_roundtrip(
+            EncryptedKey::Aes128NoMac([42; 16]),
+            r#""KioqKioqKioqKioqKioqKg==""#,
+        );
+        assert_roundtrip(
+            EncryptedKey::Aes128WithMac([42; 65]),
+            r#""KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=""#,
+        );
+        assert_roundtrip(
+            EncryptedKey::Aes256NoMac([42; 32]),
+            r#""KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=""#,
+        );
 
         assert_deser_error::<EncryptedKey>(r#""""#, "key must not be empty");
         assert_deser_error::<EncryptedKey>(r#""eAo=""#, "invalid key length: 2");
@@ -139,16 +148,19 @@ mod tests {
 
     #[test]
     fn test_roundtrip_optional_encrypted_key() {
-        assert_roundtrip(OptionalEncryptedKey(Some(EncryptedKey::Aes128NoMac(
-            [42; 16],
-        ))));
-        assert_roundtrip(OptionalEncryptedKey(Some(EncryptedKey::Aes128WithMac(
-            [42; 65],
-        ))));
-        assert_roundtrip(OptionalEncryptedKey(Some(EncryptedKey::Aes256NoMac(
-            [42; 32],
-        ))));
-        assert_roundtrip(OptionalEncryptedKey(None));
+        assert_roundtrip(
+            OptionalEncryptedKey(Some(EncryptedKey::Aes128NoMac([42; 16]))),
+            r#""KioqKioqKioqKioqKioqKg==""#,
+        );
+        assert_roundtrip(
+            OptionalEncryptedKey(Some(EncryptedKey::Aes128WithMac([42; 65]))),
+            r#""KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=""#,
+        );
+        assert_roundtrip(
+            OptionalEncryptedKey(Some(EncryptedKey::Aes256NoMac([42; 32]))),
+            r#""KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio=""#,
+        );
+        assert_roundtrip(OptionalEncryptedKey(None), r#""""#);
 
         assert_deser_error::<EncryptedKey>(r#""eAo=""#, "invalid key length: 2");
     }
