@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use folders::Folder;
 use futures::{StreamExt, TryStreamExt};
 use logging::{setup_logging, LoggingCLIConfig};
+use signal::FutureSignalExt;
 use tracing::{debug, info};
 
 // Workaround for "unused crate" lint false positives.
@@ -35,6 +36,7 @@ mod mails;
 mod non_empty_string;
 mod proto;
 mod session;
+mod signal;
 
 /// CLI args.
 #[derive(Debug, Parser)]
@@ -90,6 +92,7 @@ async fn main() -> Result<()> {
         .context("perform login")?;
 
     let cmd_res = exec_cmd(&client, &session, args.command)
+        .cancel_on_signal()
         .await
         .context("execute command");
     let logout_res = session.logout(&client).await.context("logout");
