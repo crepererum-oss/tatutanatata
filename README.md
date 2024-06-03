@@ -53,7 +53,7 @@ AnotherFolder
 Then pick one to export:
 
 ```console
-$ cargo run --release -- -v export --folder MyFolder
+$ cargo run --release -- -v download --folder=MyFolder --path=./output
 ```
 
 You should now find all [EML] files in `./out`. You can use them in about any Email program of your choice, e.g.
