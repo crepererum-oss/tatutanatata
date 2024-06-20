@@ -1,7 +1,6 @@
 use std::future::Future;
 
 use anyhow::{Context, Result};
-use tokio::signal::unix::SignalKind;
 use tracing::warn;
 
 pub(crate) trait FutureSignalExt {
@@ -13,13 +12,12 @@ where
     F: Future<Output = Result<()>> + Send,
 {
     async fn cancel_on_signal(self) -> Result<()> {
-        let mut sigterm_listener =
-            tokio::signal::unix::signal(SignalKind::terminate()).context("listen for SIGTERM")?;
+        let signal_listener = wait_signal()?;
         let ctrc_listener = tokio::signal::ctrl_c();
 
         tokio::select! {
-            _ = sigterm_listener.recv() => {
-                warn!("terminated by SIGTERM");
+            sig = signal_listener => {
+                warn!("terminated by {}", sig);
                 Ok(())
             }
             res = ctrc_listener => {
@@ -32,4 +30,22 @@ where
             }
         }
     }
+}
+
+#[cfg(unix)]
+fn wait_signal() -> Result<impl Future<Output = &'static str>> {
+    use tokio::signal::unix::SignalKind;
+
+    let mut sigterm_listener =
+        tokio::signal::unix::signal(SignalKind::terminate()).context("listen for SIGTERM")?;
+
+    Ok(async move {
+        sigterm_listener.recv().await;
+        "SIGTERM"
+    })
+}
+
+#[cfg(windows)]
+fn wait_signal() -> Result<impl Future<Output = &'static str>> {
+    Ok(futures::future::pending())
 }
