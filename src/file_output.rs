@@ -25,7 +25,12 @@ pub(crate) async fn write_to_file(content: &[u8], path: &Path) -> Result<()> {
 async fn rename(old: &Path, new: &Path) -> Result<(), std::io::Error> {
     // some file systems like SMB may not sync immediately and return "not found" shortly after file
     // creation
-    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(500)
+
+    // WARNING: The exponential config is somewhat weird. `from_millis(base).factor(factor)` means
+    //          `base^retry * factor`.
+    //          Also see https://github.com/srijs/rust-tokio-retry/issues/22 .
+    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(2)
+        .factor(500)
         .map(tokio_retry::strategy::jitter)
         .take(10);
 

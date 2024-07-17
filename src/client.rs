@@ -254,7 +254,11 @@ where
     F: Fn() -> Fut + Send,
     Fut: Future<Output = Result<T, reqwest::Error>> + Send,
 {
-    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(500)
+    // WARNING: The exponential config is somewhat weird. `from_millis(base).factor(factor)` means
+    //          `base^retry * factor`.
+    //          Also see https://github.com/srijs/rust-tokio-retry/issues/22 .
+    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(2)
+        .factor(500)
         .map(tokio_retry::strategy::jitter);
 
     let condition = |e: &reqwest::Error| {
