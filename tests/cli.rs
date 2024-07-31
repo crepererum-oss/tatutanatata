@@ -9,9 +9,15 @@ use assert_cmd::Command;
 use tempfile::TempDir;
 
 #[test]
-fn test_help() {
+fn test_help_arg() {
     let mut cmd = cmd();
     cmd.arg("--help").assert().success();
+}
+
+#[test]
+fn test_help_cmd() {
+    let mut cmd = cmd();
+    cmd.arg("help").assert().success();
 }
 
 fn cmd() -> Command {
