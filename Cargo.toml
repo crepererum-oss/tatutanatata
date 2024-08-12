@@ -12,7 +12,7 @@ base64 = "0.22.1"
 bcrypt = "0.15.1"
 cbc = { version = "0.1.2", features = ["alloc"] }
 chrono = "0.4.38"
-clap = { version = "4.5.13", features = ["derive", "env"] }
+clap = { version = "4.5.15", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3.28"
 hmac = "0.12.1"
