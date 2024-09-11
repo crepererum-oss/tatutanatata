@@ -124,7 +124,14 @@ impl Client {
         let jd = &mut serde_json::Deserializer::from_str(&s);
         let res: Result<Resp, _> = serde_path_to_error::deserialize(jd);
 
-        res.with_context(|| format!("deserialize JSON for `{}`", std::any::type_name::<Resp>()))
+        res.with_context(|| {
+            println!();
+            println!();
+            println!("{s}");
+            println!();
+            println!();
+            format!("deserialize JSON for `{}`", std::any::type_name::<Resp>())
+        })
     }
 
     pub(crate) async fn do_bytes<Req>(&self, r: Request<'_, Req>) -> Result<Vec<u8>>
