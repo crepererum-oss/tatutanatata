@@ -1,13 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::proto::constants::Format;
-
 use super::{
     binary::{Base64String, Base64Url},
-    constants::Null,
+    constants::{Format, Null},
     date::UnixDate,
     enums::{ArchiveDataType, GroupType, KdfVersion, MailFolderType},
     keys::{EncryptedKey, OptionalEncryptedKey},
+    numbers::Number,
 };
 
 pub(crate) trait Entity {
@@ -281,6 +280,7 @@ pub(crate) struct MailDetailsBlob {
 pub(crate) struct FileBlob {
     pub(crate) archive_id: String,
     pub(crate) blob_id: String,
+    pub(crate) size: Number,
 }
 
 #[derive(Debug, Deserialize)]
@@ -298,7 +298,8 @@ pub(crate) struct FileReponse {
     pub(crate) cid: Option<Base64String>,
     pub(crate) mime_type: Base64String,
     pub(crate) name: Base64String,
-    pub(crate) blobs: [FileBlob; 1],
+    pub(crate) size: Number,
+    pub(crate) blobs: Vec<FileBlob>,
 }
 
 #[derive(Debug, Serialize)]

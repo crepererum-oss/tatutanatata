@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use futures::{Stream, TryStreamExt};
 use reqwest::Method;
@@ -179,51 +179,18 @@ impl Mail {
                 .await
                 .context("get file infos")?;
 
-            for (id, file) in ids.into_iter().zip(files) {
-                let session_key = decrypt_key(
-                    session
-                        .group_keys
-                        .get(&file.owner_group)
-                        .context("getting file owner group key")?,
-                    file.owner_enc_session_key,
-                )
-                .context("decrypting file session key")?;
-
-                let cid = if let Some(cid) = &file.cid {
-                    let cid = decrypt_value(session_key, cid).context("decrypt file content ID")?;
-                    let cid = String::from_utf8(cid).context("decode cid")?;
-                    Some(cid)
-                } else {
-                    None
-                };
-
-                let mime_type = decrypt_value(session_key, file.mime_type.as_ref())
-                    .context("decrypt file mime type")?;
-                let mime_type = String::from_utf8(mime_type).context("decode mime_type")?;
-
-                let name =
-                    decrypt_value(session_key, file.name.as_ref()).context("decrypt file name")?;
-                let name = String::from_utf8(name).context("decode name")?;
-
-                let [blob] = file.blobs;
-                let data = get_attachment_blob(
-                    client,
-                    session,
-                    &blob.archive_id,
-                    &blob.blob_id,
-                    group,
-                    id,
-                )
-                .await
-                .context("download attachment")?;
-                let data = decrypt_value(session_key, &data).context("decrypt attachment data")?;
-
-                attachments.push(Attachment {
-                    cid,
-                    mime_type,
-                    name,
-                    data,
-                });
+            ensure!(
+                ids.len() == files.len(),
+                "attachment IDs and files match, but got {} IDs and {} files",
+                ids.len(),
+                files.len(),
+            );
+            for (idx, (id, file)) in ids.into_iter().zip(files).enumerate() {
+                attachments.push(
+                    Self::download_file(client, session, group, file, id)
+                        .await
+                        .with_context(|| format!("download file #{}", idx + 1))?,
+                );
             }
         }
 
@@ -235,6 +202,69 @@ impl Mail {
             bcc,
             cc,
             to,
+        })
+    }
+
+    async fn download_file(
+        client: &Client,
+        session: &Session,
+        group: &str,
+        file: FileReponse,
+        id: &str,
+    ) -> Result<Attachment> {
+        let session_key = decrypt_key(
+            session
+                .group_keys
+                .get(&file.owner_group)
+                .context("getting file owner group key")?,
+            file.owner_enc_session_key,
+        )
+        .context("decrypting file session key")?;
+
+        let cid = if let Some(cid) = &file.cid {
+            let cid = decrypt_value(session_key, cid).context("decrypt file content ID")?;
+            let cid = String::from_utf8(cid).context("decode cid")?;
+            Some(cid)
+        } else {
+            None
+        };
+
+        let mime_type = decrypt_value(session_key, file.mime_type.as_ref())
+            .context("decrypt file mime type")?;
+        let mime_type = String::from_utf8(mime_type).context("decode mime_type")?;
+
+        let name = decrypt_value(session_key, file.name.as_ref()).context("decrypt file name")?;
+        let name = String::from_utf8(name).context("decode name")?;
+
+        let mut data_all = Vec::with_capacity(file.size.0 as usize);
+        let mut encrypted_size_sum = 0;
+        for blob in file.blobs {
+            let data =
+                get_attachment_blob(client, session, &blob.archive_id, &blob.blob_id, group, id)
+                    .await
+                    .context("download attachment")?;
+            ensure!(
+                data.len() == blob.size.0 as usize,
+                "encrypted blob data size is wrong, should be {} bytes but got {} bytes",
+                blob.size.0,
+                data.len(),
+            );
+            encrypted_size_sum += data.len();
+            let mut data = decrypt_value(session_key, &data).context("decrypt attachment data")?;
+            data_all.append(&mut data);
+        }
+        ensure!(
+            encrypted_size_sum == file.size.0 as usize,
+            "encrypted blobs do not add up to file size, should be {} bytes but got {} bytes",
+            file.size.0,
+            encrypted_size_sum,
+        );
+
+        Ok(Attachment {
+            cid,
+            mime_type,
+            name,
+            data: data_all,
         })
     }
 }
