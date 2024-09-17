@@ -97,7 +97,7 @@ pub(crate) async fn get_attachment_blob(
         .await
         .context("blob download")?;
 
-    Ok(data.to_vec())
+    Ok(data)
 }
 
 async fn get_access(
