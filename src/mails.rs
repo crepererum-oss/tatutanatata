@@ -58,6 +58,7 @@ impl Mail {
         folder: &Folder,
     ) -> impl Stream<Item = Result<Arc<Self>>> {
         let group_keys = Arc::clone(&session.group_keys);
+        let folder_id = folder.id.clone();
         client
             .stream::<MailReponse>(
                 &format!("mail/{}", folder.mails),
@@ -65,14 +66,15 @@ impl Mail {
             )
             .and_then(move |m| {
                 let group_keys = Arc::clone(&group_keys);
+                let folder_id = folder_id.clone();
                 async move {
-                    let mail = Self::decode(m, &group_keys)?;
+                    let mail = Self::decode(m, &group_keys, folder_id)?;
                     Ok(Arc::new(mail))
                 }
             })
     }
 
-    fn decode(resp: MailReponse, group_keys: &GroupKeys) -> Result<Self> {
+    fn decode(resp: MailReponse, group_keys: &GroupKeys, folder_id: String) -> Result<Self> {
         let session_key = decrypt_key(
             group_keys
                 .get(&resp.owner_group)
@@ -87,7 +89,7 @@ impl Mail {
         let sender = Address::decode(resp.sender, session_key).context("decode sender")?;
 
         Ok(Self {
-            folder_id: resp.id[0].clone(),
+            folder_id,
             mail_id: resp.id[1].clone(),
             archive_id: resp.mail_details[0].clone(),
             blob_id: resp.mail_details[1].clone(),
