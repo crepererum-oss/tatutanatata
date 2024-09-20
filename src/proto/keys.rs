@@ -3,10 +3,36 @@ use std::ops::Deref;
 
 use super::binary::Base64String;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Key {
     Aes128([u8; 16]),
     Aes256([u8; 32]),
+}
+
+impl std::fmt::Debug for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Aes128(k) => {
+                write!(f, "Aes128(")?;
+                fmt_hex(k, f)?;
+                write!(f, ")")?;
+            }
+            Self::Aes256(k) => {
+                write!(f, "Aes256(")?;
+                fmt_hex(k, f)?;
+                write!(f, ")")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+fn fmt_hex(v: &[u8], f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    for b in v {
+        write!(f, "{:x}", b)?;
+    }
+    Ok(())
 }
 
 impl AsRef<[u8]> for Key {
@@ -163,5 +189,17 @@ mod tests {
         assert_roundtrip(OptionalEncryptedKey(None), r#""""#);
 
         assert_deser_error::<EncryptedKey>(r#""eAo=""#, "invalid key length: 2");
+    }
+
+    #[test]
+    fn test_key_debug() {
+        assert_eq!(
+            format!("{:?}", Key::Aes128([42; 16])),
+            "Aes128(2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a)",
+        );
+        assert_eq!(
+            format!("{:?}", Key::Aes256([42; 32])),
+            "Aes256(2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a)",
+        );
     }
 }
