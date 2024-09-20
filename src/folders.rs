@@ -22,6 +22,7 @@ use crate::{
 pub(crate) struct Folder {
     pub(crate) name: String,
     pub(crate) mails: String,
+    pub(crate) id: String,
 }
 
 impl Folder {
@@ -98,6 +99,7 @@ impl Folder {
         Ok(Self {
             name,
             mails: resp.mails,
+            id: resp.id[1].clone(),
         })
     }
 }
