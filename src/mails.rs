@@ -4,6 +4,7 @@ use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Utc};
 use futures::{Stream, TryStreamExt};
 use reqwest::Method;
+use tracing::warn;
 
 use crate::{
     blob::{get_attachment_blob, get_mail_blob},
@@ -253,12 +254,14 @@ impl Mail {
             let mut data = decrypt_value(session_key, &data).context("decrypt attachment data")?;
             data_all.append(&mut data);
         }
-        ensure!(
-            encrypted_size_sum == file.size.0 as usize,
-            "encrypted blobs do not add up to file size, should be {} bytes but got {} bytes",
-            file.size.0,
-            encrypted_size_sum,
-        );
+        if encrypted_size_sum != file.size.0 as usize {
+            warn!(
+                actual=encrypted_size_sum,
+                expected=file.size.0,
+                related_issue="https://github.com/crepererum-oss/tatutanatata/issues/278",
+                "encrypted blobs do not add up to file size, this seems to happen for some older data",
+            );
+        }
 
         Ok(Attachment {
             cid,
