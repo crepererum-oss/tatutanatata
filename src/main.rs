@@ -45,6 +45,12 @@ struct Args {
     #[clap(flatten)]
     logging_cfg: LoggingCLIConfig,
 
+    /// Dump JSON responses of server to given folder.
+    ///
+    /// This is useful for development and debugging.
+    #[clap(long)]
+    debug_dump_json_to: Option<PathBuf>,
+
     /// Login config.
     #[clap(flatten)]
     login_cfg: LoginCLIConfig,
@@ -85,7 +91,9 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     setup_logging(args.logging_cfg).context("logging setup")?;
 
-    let client = Client::try_new().context("set up client")?;
+    let client = Client::try_new(args.debug_dump_json_to)
+        .await
+        .context("set up client")?;
 
     let session = Session::login(args.login_cfg, &client)
         .await
