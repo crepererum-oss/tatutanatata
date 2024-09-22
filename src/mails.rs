@@ -7,7 +7,7 @@ use reqwest::Method;
 use tracing::warn;
 
 use crate::{
-    blob::{get_attachment_blob, get_mail_blob},
+    blob::{get_attachment_blob, get_mail_blob, get_mail_draft_blob},
     client::{Client, Prefix, Request, DEFAULT_HOST},
     compression::decompress_value,
     crypto::encryption::{decrypt_key, decrypt_value},
@@ -44,6 +44,7 @@ pub(crate) struct Mail {
     pub(crate) mail_id: String,
     pub(crate) archive_id: String,
     pub(crate) blob_id: String,
+    pub(crate) is_draft: bool,
     pub(crate) session_key: Key,
     pub(crate) date: DateTime<Utc>,
     pub(crate) subject: String,
@@ -88,11 +89,23 @@ impl Mail {
 
         let sender = Address::decode(resp.sender, session_key).context("decode sender")?;
 
+        let ([archive_id, blob_id], is_draft) = match (resp.mail_details, resp.mail_details_draft) {
+            (Some(_), Some(_)) => {
+                bail!("mail as both `mailDetails` and `mailDetailsDraft`");
+            }
+            (Some(x), None) => (x, false),
+            (None, Some(x)) => (x, true),
+            (None, None) => {
+                bail!("mail has neither `mailDetails` nor `mailDetailsDraft`");
+            }
+        };
+
         Ok(Self {
             folder_id,
             mail_id: resp.id[1].clone(),
-            archive_id: resp.mail_details[0].clone(),
-            blob_id: resp.mail_details[1].clone(),
+            archive_id,
+            blob_id,
+            is_draft,
             session_key,
             date: resp.received_date.0,
             subject,
@@ -110,10 +123,17 @@ impl Mail {
         client: &Client,
         session: &Session,
     ) -> Result<DownloadedMail> {
-        let mail_details = get_mail_blob(client, session, &self.archive_id, &self.blob_id)
-            .await
-            .context("download mail details")?
-            .details;
+        let mail_details = if self.is_draft {
+            get_mail_draft_blob(client, session, &self.archive_id, &self.blob_id)
+                .await
+                .context("download mail draft details")?
+                .details
+        } else {
+            get_mail_blob(client, session, &self.archive_id, &self.blob_id)
+                .await
+                .context("download mail details")?
+                .details
+        };
 
         let body = decrypt_and_decompress(
             self.session_key,
