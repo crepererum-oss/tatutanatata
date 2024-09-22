@@ -198,6 +198,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -242,6 +243,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -283,6 +285,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -324,6 +327,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -370,6 +374,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -412,6 +417,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -502,6 +508,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
@@ -545,6 +552,7 @@ mod tests {
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()

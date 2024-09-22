@@ -53,6 +53,32 @@ pub(crate) async fn get_mail_blob(
     Ok(resp.into_iter().next().expect("checked length"))
 }
 
+pub(crate) async fn get_mail_draft_blob(
+    client: &Client,
+    session: &Session,
+    archive_id: &str,
+    blob_id: &str,
+) -> Result<MailDetailsBlob> {
+    let resp: Vec<MailDetailsBlob> = client
+        .do_json(Request {
+            method: Method::GET,
+            host: DEFAULT_HOST,
+            prefix: Prefix::Tutanota,
+            path: &format!("maildetailsdraft/{archive_id}"),
+            data: &(),
+            access_token: Some(&session.access_token),
+            query: &[("ids", &[blob_id].join(","))],
+        })
+        .await
+        .context("blob download")?;
+
+    if resp.len() != 1 {
+        bail!("invalid reponse length")
+    }
+
+    Ok(resp.into_iter().next().expect("checked length"))
+}
+
 pub(crate) async fn get_attachment_blob(
     client: &Client,
     session: &Session,

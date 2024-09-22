@@ -164,7 +164,8 @@ pub(crate) struct MailReponse {
     #[serde(rename = "_id")]
     pub(crate) id: [String; 2],
 
-    pub(crate) mail_details: [String; 2],
+    pub(crate) mail_details: Option<[String; 2]>,
+    pub(crate) mail_details_draft: Option<[String; 2]>,
 
     pub(crate) received_date: UnixDate,
     pub(crate) subject: Base64String,
