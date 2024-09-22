@@ -1,4 +1,4 @@
-use std::{future::Future, sync::Arc};
+use std::{future::Future, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures::Stream;
@@ -9,6 +9,7 @@ use tokio::{
     task::JoinSet,
 };
 use tracing::{debug, warn};
+use uuid::Uuid;
 
 use crate::{
     constants::APP_USER_AGENT,
@@ -22,10 +23,11 @@ pub(crate) const DEFAULT_HOST: &str = "https://app.tuta.com";
 #[derive(Debug, Clone)]
 pub(crate) struct Client {
     inner: reqwest::Client,
+    debug_dump_json_to: Option<PathBuf>,
 }
 
 impl Client {
-    pub(crate) fn try_new() -> Result<Self> {
+    pub(crate) async fn try_new(debug_dump_json_to: Option<PathBuf>) -> Result<Self> {
         let inner = reqwest::Client::builder()
             .hickory_dns(true)
             .http2_adaptive_window(true)
@@ -36,7 +38,16 @@ impl Client {
             .build()
             .context("set up HTTPs client")?;
 
-        Ok(Self { inner })
+        if let Some(path) = &debug_dump_json_to {
+            tokio::fs::create_dir_all(path)
+                .await
+                .context("creating directories to dump JSON data")?;
+        }
+
+        Ok(Self {
+            inner,
+            debug_dump_json_to,
+        })
     }
 
     pub(crate) fn stream<Resp>(
@@ -121,10 +132,40 @@ impl Client {
     {
         let s = retry(|| async { self.do_request(r.clone()).await?.text().await }).await?;
 
+        let json_path = match &self.debug_dump_json_to {
+            Some(path) => {
+                let uuid = Uuid::new_v4();
+                let path = path.join(format!("{uuid}.json"));
+                debug!(%uuid, path=%path.display(), "dumping debug JSON");
+                tokio::fs::write(&path, &s)
+                    .await
+                    .context("dumping debug JSON")?;
+                Some(path)
+            }
+            None => None,
+        };
+
         let jd = &mut serde_json::Deserializer::from_str(&s);
         let res: Result<Resp, _> = serde_path_to_error::deserialize(jd);
 
-        res.with_context(|| format!("deserialize JSON for `{}`", std::any::type_name::<Resp>()))
+        res.with_context(|| {
+            let type_name = std::any::type_name::<Resp>();
+            match json_path {
+                Some(json_path) => {
+                    format!(
+                        "deserialize JSON for `{}`, data dumped to `{}`",
+                        type_name,
+                        json_path.display(),
+                    )
+                }
+                None => {
+                    format!(
+                        "deserialize JSON for `{}`, consider passing `--debug-dump-json-to=some/path` to dump the data",
+                        type_name,
+                    )
+                }
+            }
+        })
     }
 
     pub(crate) async fn do_bytes<Req>(&self, r: Request<'_, Req>) -> Result<Vec<u8>>

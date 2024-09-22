@@ -43,6 +43,24 @@ mod integration {
     use super::*;
 
     #[test]
+    fn test_debug_dump_json() {
+        let tmp_dir = TempDir::new().unwrap();
+
+        // use path that does NOT exist
+        let dump_dir = tmp_dir.path().join("json");
+
+        let mut cmd = cmd();
+        cmd.arg("-vv")
+            .arg("--debug-dump-json-to")
+            .arg(&dump_dir)
+            .arg("list-folders")
+            .assert()
+            .success();
+
+        assert!(std::fs::read_dir(dump_dir).unwrap().count() > 0);
+    }
+
+    #[test]
     fn test_list_folders() {
         let mut cmd = cmd();
         let res = cmd.arg("-vv").arg("list-folders").assert().success();
