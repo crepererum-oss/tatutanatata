@@ -11,18 +11,14 @@ pub(crate) enum Key {
 
 impl std::fmt::Debug for Key {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Aes128(k) => {
-                write!(f, "Aes128(")?;
-                fmt_hex(k, f)?;
-                write!(f, ")")?;
-            }
-            Self::Aes256(k) => {
-                write!(f, "Aes256(")?;
-                fmt_hex(k, f)?;
-                write!(f, ")")?;
-            }
-        }
+        let (name, k) = match self {
+            Self::Aes128(k) => ("Aes128", k.as_slice()),
+            Self::Aes256(k) => ("Aes256", k.as_slice()),
+        };
+
+        write!(f, "{name}(")?;
+        fmt_hex(k, f)?;
+        write!(f, ")")?;
 
         Ok(())
     }
@@ -30,7 +26,7 @@ impl std::fmt::Debug for Key {
 
 fn fmt_hex(v: &[u8], f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     for b in v {
-        write!(f, "{:x}", b)?;
+        write!(f, "{:02x}", b)?;
     }
     Ok(())
 }
@@ -55,12 +51,28 @@ impl Deref for Key {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 pub(crate) enum EncryptedKey {
     Aes128NoMac([u8; 16]),
     Aes128WithMac([u8; 65]),
     Aes256NoMac([u8; 32]),
+}
+
+impl std::fmt::Debug for EncryptedKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (name, k) = match self {
+            Self::Aes128NoMac(k) => ("Aes128NoMac", k.as_slice()),
+            Self::Aes128WithMac(k) => ("Aes128WithMac", k.as_slice()),
+            Self::Aes256NoMac(k) => ("Aes256NoMac", k.as_slice()),
+        };
+
+        write!(f, "{name}(")?;
+        fmt_hex(k, f)?;
+        write!(f, ")")?;
+
+        Ok(())
+    }
 }
 
 impl AsRef<[u8]> for EncryptedKey {
@@ -149,6 +161,8 @@ impl<'de> serde::Deserialize<'de> for OptionalEncryptedKey {
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
+
     use crate::proto::testing::{assert_deser_error, assert_roundtrip};
 
     use super::*;
@@ -194,12 +208,44 @@ mod tests {
     #[test]
     fn test_key_debug() {
         assert_eq!(
-            format!("{:?}", Key::Aes128([42; 16])),
-            "Aes128(2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a)",
+            format!(
+                "{:?}",
+                Key::Aes128(hex!("3556747514a3da176d423cf3153b27ba"))
+            ),
+            "Aes128(3556747514a3da176d423cf3153b27ba)",
         );
         assert_eq!(
-            format!("{:?}", Key::Aes256([42; 32])),
-            "Aes256(2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a)",
+            format!(
+                "{:?}",
+                Key::Aes256(hex!(
+                    "32918beb02de716886e6adab052d096dcc2c9eddbb4ee43acec3c260e0044f38"
+                ))
+            ),
+            "Aes256(32918beb02de716886e6adab052d096dcc2c9eddbb4ee43acec3c260e0044f38)",
+        );
+    }
+
+    #[test]
+    fn test_encrypted_key_debug() {
+        assert_eq!(
+            format!(
+                "{:?}",
+                EncryptedKey::Aes128NoMac(hex!("3556747514a3da176d423cf3153b27ba"))
+            ),
+            "Aes128NoMac(3556747514a3da176d423cf3153b27ba)",
+        );
+        assert_eq!(
+            format!("{:?}", EncryptedKey::Aes128WithMac(hex!("ba72082f6b21044cb93c387a0ce93e1896e1dd0a31be5928999d3978fed41501a0bf6aea71f9fe9996e1cc39fbf302bcea50c9cee1faa62480869999d633062965"))),
+            "Aes128WithMac(ba72082f6b21044cb93c387a0ce93e1896e1dd0a31be5928999d3978fed41501a0bf6aea71f9fe9996e1cc39fbf302bcea50c9cee1faa62480869999d633062965)",
+        );
+        assert_eq!(
+            format!(
+                "{:?}",
+                EncryptedKey::Aes256NoMac(hex!(
+                    "32918beb02de716886e6adab052d096dcc2c9eddbb4ee43acec3c260e0044f38"
+                ))
+            ),
+            "Aes256NoMac(32918beb02de716886e6adab052d096dcc2c9eddbb4ee43acec3c260e0044f38)",
         );
     }
 }
