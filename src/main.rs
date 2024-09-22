@@ -9,6 +9,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use constants::VERSION_STRING;
 use folders::Folder;
 use futures::{StreamExt, TryStreamExt};
 use logging::{setup_logging, LoggingCLIConfig};
@@ -40,6 +41,10 @@ mod signal;
 
 /// CLI args.
 #[derive(Debug, Parser)]
+#[command(
+    about = "CLI (Command Line Interface) for Tutanota/Tuta, mostly meant for mass export.",
+    version = VERSION_STRING,
+)]
 struct Args {
     /// Logging config.
     #[clap(flatten)]
