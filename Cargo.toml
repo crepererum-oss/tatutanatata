@@ -14,7 +14,7 @@ cbc = { version = "0.1.2", features = ["alloc"] }
 chrono = "0.4.38"
 clap = { version = "4.5.19", features = ["derive", "env"] }
 dotenvy = "0.15.7"
-futures = "0.3.28"
+futures = "0.3.31"
 hmac = "0.12.1"
 itertools = "0.13.0"
 lz4_flex = "0.11.3"
