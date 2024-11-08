@@ -24,7 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_path_to_error = "0.1.16"
 sha2 = "0.10.8"
-tokio = { version = "1.41.0", features = ["fs", "macros", "rt-multi-thread", "signal"] }
+tokio = { version = "1.41.1", features = ["fs", "macros", "rt-multi-thread", "signal"] }
 tokio-retry = "0.3.0"
 tracing = "0.1.38"
 tracing-log = "0.2.0"
