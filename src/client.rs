@@ -273,7 +273,7 @@ where
     }
 }
 
-impl<'a, Req> Clone for Request<'a, Req>
+impl<Req> Clone for Request<'_, Req>
 where
     Req: serde::Serialize + Sync,
 {
