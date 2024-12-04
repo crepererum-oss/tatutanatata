@@ -115,7 +115,7 @@ impl Session {
         debug!(session = session.as_str(), "performing logout",);
 
         client
-            .do_request(Request {
+            .do_no_response(Request {
                 method: Method::DELETE,
                 host: DEFAULT_HOST,
                 prefix: Prefix::Sys,

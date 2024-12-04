@@ -6,38 +6,42 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 aes = "0.8.4"
-anyhow = "1.0.81"
+anyhow = "1.0.94"
 argon2 = "0.5.3"
-base64 = "0.22.0"
-bcrypt = "0.15.1"
+base64 = "0.22.1"
+bcrypt = "0.16.0"
 cbc = { version = "0.1.2", features = ["alloc"] }
-chrono = "0.4.37"
-clap = { version = "4.5.4", features = ["derive", "env"] }
+chrono = "0.4.38"
+clap = { version = "4.5.22", features = ["derive", "env"] }
 dotenvy = "0.15.7"
-futures = "0.3.28"
+futures = "0.3.31"
 hmac = "0.12.1"
-itertools = "0.12.1"
+itertools = "0.13.0"
 lz4_flex = "0.11.3"
-regex = "1.10.4"
+regex = "1.11.1"
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "charset", "deflate", "gzip", "hickory-dns", "http2", "json", "rustls-tls-webpki-roots"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_path_to_error = "0.1.16"
 sha2 = "0.10.8"
-tokio = { version = "1.37.0", features = ["fs", "macros", "rt-multi-thread"] }
-tracing = "0.1.38"
+tokio = { version = "1.42.0", features = ["fs", "macros", "rt-multi-thread", "signal"] }
+tokio-retry = "0.3.0"
+tracing = "0.1.41"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+uuid = { version = "1.11.0", features = ["v4"] }
 
 [dev-dependencies]
-assert_cmd = "2.0.14"
-insta = "1.38.0"
-similar-asserts = "1.5.0"
+assert_cmd = "2.0.16"
+hex-literal = "0.4.1"
+insta = "1.41.1"
+similar-asserts = "1.6.0"
 tempfile = "3"
 
 [lints.rust]
+rust_2018_idioms = { level ="deny", priority = -1 }
 missing_copy_implementations = "deny"
 missing_debug_implementations = "deny"
-rust_2018_idioms = "deny"
 unreachable_pub = "deny"
 unused_crate_dependencies = "deny"
 

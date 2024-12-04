@@ -1,10 +1,15 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{future::Future, path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use futures::Stream;
-use reqwest::{Method, Response};
+use reqwest::{Method, Response, StatusCode};
 use serde::de::DeserializeOwned;
-use tracing::debug;
+use tokio::{
+    sync::mpsc::{channel, Receiver},
+    task::JoinSet,
+};
+use tracing::{debug, warn};
+use uuid::Uuid;
 
 use crate::{
     constants::APP_USER_AGENT,
@@ -12,15 +17,17 @@ use crate::{
 };
 
 const STREAM_BATCH_SIZE: u64 = 1000;
+const STREAM_BUFFER_SIZE: u64 = 4 * STREAM_BATCH_SIZE;
 pub(crate) const DEFAULT_HOST: &str = "https://app.tuta.com";
 
 #[derive(Debug, Clone)]
 pub(crate) struct Client {
     inner: reqwest::Client,
+    debug_dump_json_to: Option<PathBuf>,
 }
 
 impl Client {
-    pub(crate) fn try_new() -> Result<Self> {
+    pub(crate) async fn try_new(debug_dump_json_to: Option<PathBuf>) -> Result<Self> {
         let inner = reqwest::Client::builder()
             .hickory_dns(true)
             .http2_adaptive_window(true)
@@ -31,7 +38,16 @@ impl Client {
             .build()
             .context("set up HTTPs client")?;
 
-        Ok(Self { inner })
+        if let Some(path) = &debug_dump_json_to {
+            tokio::fs::create_dir_all(path)
+                .await
+                .context("creating directories to dump JSON data")?;
+        }
+
+        Ok(Self {
+            inner,
+            debug_dump_json_to,
+        })
     }
 
     pub(crate) fn stream<Resp>(
@@ -40,60 +56,72 @@ impl Client {
         access_token: Option<&Base64Url>,
     ) -> impl Stream<Item = Result<Resp>>
     where
-        Resp: DeserializeOwned + Entity,
+        Resp: DeserializeOwned + Entity + Send + 'static,
     {
-        let state = StreamState {
-            buffer: VecDeque::default(),
-            next_start: "------------".to_owned(),
-        };
+        let (tx, rx) = channel(STREAM_BUFFER_SIZE as usize);
+
         let path = Arc::new(path.to_owned());
         let access_token = Arc::new(access_token.cloned());
         let this = self.clone();
+        let mut fetch_task = JoinSet::new();
+        fetch_task.spawn(async move {
+            let mut next_start = "------------".to_owned();
 
-        futures::stream::try_unfold(state, move |mut state: StreamState<Resp>| {
-            let path = Arc::clone(&path);
-            let access_token = Arc::clone(&access_token);
-            let this = this.clone();
-            async move {
-                loop {
-                    if let Some(next) = state.buffer.pop_front() {
-                        return Ok(Some((next, state)));
+            loop {
+                debug!(
+                    path = path.as_str(),
+                    start = next_start.as_str(),
+                    "fetch new page",
+                );
+
+                let res = this
+                    .do_json::<(), Vec<Resp>>(Request {
+                        method: Method::GET,
+                        host: DEFAULT_HOST,
+                        prefix: Prefix::Tutanota,
+                        path: &path,
+                        data: &(),
+                        access_token: access_token.as_ref().as_ref(),
+                        query: &[
+                            ("start", &next_start),
+                            ("count", &STREAM_BATCH_SIZE.to_string()),
+                            ("reverse", "false"),
+                        ],
+                    })
+                    .await
+                    .context("fetch next page");
+
+                match res {
+                    Ok(elements) => {
+                        match elements.last() {
+                            None => {
+                                // reached end
+                                return;
+                            }
+                            Some(o) => {
+                                o.id().to_owned().clone_into(&mut next_start);
+                            }
+                        }
+
+                        for o in elements {
+                            if tx.send(Ok(o)).await.is_err() {
+                                // receiver gone
+                                return;
+                            }
+                        }
                     }
-
-                    // buffer empty
-                    debug!(
-                        path = path.as_str(),
-                        start = state.next_start.as_str(),
-                        "fetch new page",
-                    );
-                    state.buffer = this
-                        .do_json::<(), Vec<Resp>>(Request {
-                            method: Method::GET,
-                            host: DEFAULT_HOST,
-                            prefix: Prefix::Tutanota,
-                            path: &path,
-                            data: &(),
-                            access_token: access_token.as_ref().as_ref(),
-                            query: &[
-                                ("start", &state.next_start),
-                                ("count", &STREAM_BATCH_SIZE.to_string()),
-                                ("reverse", "false"),
-                            ],
-                        })
-                        .await
-                        .context("fetch next page")?
-                        .into();
-                    match state.buffer.back() {
-                        None => {
-                            // reached end
-                            return Ok(None);
-                        }
-                        Some(o) => {
-                            state.next_start = o.id().to_owned();
-                        }
+                    Err(e) => {
+                        // it's OK if the receiver is gone, we exit anyways
+                        tx.send(Err(e)).await.ok();
+                        return;
                     }
                 }
             }
+        });
+        let state = StreamState { rx, fetch_task };
+
+        futures::stream::unfold(state, move |mut state: StreamState<Resp>| async move {
+            state.rx.recv().await.map(|next| (next, state))
         })
     }
 
@@ -102,17 +130,63 @@ impl Client {
         Req: serde::Serialize + Sync,
         Resp: DeserializeOwned,
     {
-        let resp = self
-            .do_request(r)
-            .await?
-            .json::<Resp>()
-            .await
-            .context("fetch JSON response")?;
+        let s = retry(|| async { self.do_request(r.clone()).await?.text().await }).await?;
 
-        Ok(resp)
+        let json_path = match &self.debug_dump_json_to {
+            Some(path) => {
+                let uuid = Uuid::new_v4();
+                let path = path.join(format!("{uuid}.json"));
+                debug!(%uuid, path=%path.display(), "dumping debug JSON");
+                tokio::fs::write(&path, &s)
+                    .await
+                    .context("dumping debug JSON")?;
+                Some(path)
+            }
+            None => None,
+        };
+
+        let jd = &mut serde_json::Deserializer::from_str(&s);
+        let res: Result<Resp, _> = serde_path_to_error::deserialize(jd);
+
+        res.with_context(|| {
+            let type_name = std::any::type_name::<Resp>();
+            match json_path {
+                Some(json_path) => {
+                    format!(
+                        "deserialize JSON for `{}`, data dumped to `{}`",
+                        type_name,
+                        json_path.display(),
+                    )
+                }
+                None => {
+                    format!(
+                        "deserialize JSON for `{}`, consider passing `--debug-dump-json-to=some/path` to dump the data",
+                        type_name,
+                    )
+                }
+            }
+        })
     }
 
-    pub(crate) async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response>
+    pub(crate) async fn do_bytes<Req>(&self, r: Request<'_, Req>) -> Result<Vec<u8>>
+    where
+        Req: serde::Serialize + Sync,
+    {
+        let b = retry(|| async { self.do_request(r.clone()).await?.bytes().await }).await?;
+
+        Ok(b.to_vec())
+    }
+
+    pub(crate) async fn do_no_response<Req>(&self, r: Request<'_, Req>) -> Result<()>
+    where
+        Req: serde::Serialize + Sync,
+    {
+        retry(|| async { self.do_request(r.clone()).await }).await?;
+
+        Ok(())
+    }
+
+    async fn do_request<Req>(&self, r: Request<'_, Req>) -> Result<Response, reqwest::Error>
     where
         Req: serde::Serialize + Sync,
     {
@@ -139,18 +213,17 @@ impl Client {
             .json(data)
             .query(query)
             .send()
-            .await
-            .context("initial request")?
-            .error_for_status()
-            .context("return status")?;
+            .await?
+            .error_for_status()?;
 
         Ok(resp)
     }
 }
 
 struct StreamState<T> {
-    buffer: VecDeque<T>,
-    next_start: String,
+    rx: Receiver<Result<T>>,
+    #[allow(dead_code)]
+    fetch_task: JoinSet<()>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -198,4 +271,60 @@ where
             query: &[],
         }
     }
+}
+
+impl<Req> Clone for Request<'_, Req>
+where
+    Req: serde::Serialize + Sync,
+{
+    fn clone(&self) -> Self {
+        Self {
+            method: self.method.clone(),
+            host: self.host,
+            prefix: self.prefix,
+            path: self.path,
+            data: self.data,
+            access_token: self.access_token,
+            query: self.query,
+        }
+    }
+}
+
+async fn retry<F, Fut, T>(action: F) -> Result<T, reqwest::Error>
+where
+    F: Fn() -> Fut + Send,
+    Fut: Future<Output = Result<T, reqwest::Error>> + Send,
+{
+    // WARNING: The exponential config is somewhat weird. `from_millis(base).factor(factor)` means
+    //          `base^retry * factor`.
+    //          Also see https://github.com/srijs/rust-tokio-retry/issues/22 .
+    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(2)
+        .factor(500)
+        .map(tokio_retry::strategy::jitter);
+
+    let condition = |e: &reqwest::Error| {
+        if e.is_connect() || e.is_timeout() {
+            return true;
+        }
+
+        if let Some(status) = e.status() {
+            if status.is_server_error()
+                || (status == StatusCode::REQUEST_TIMEOUT)
+                || (status == StatusCode::TOO_MANY_REQUESTS)
+            {
+                return true;
+            }
+        }
+
+        false
+    };
+    let condition = move |e: &reqwest::Error| {
+        let should_retry = condition(e);
+        if should_retry {
+            warn!(%e, "retry client error");
+        }
+        should_retry
+    };
+
+    tokio_retry::RetryIf::spawn(strategy, action, condition).await
 }

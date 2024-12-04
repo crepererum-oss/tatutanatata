@@ -1,13 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::proto::constants::Format;
-
 use super::{
     binary::{Base64String, Base64Url},
-    constants::Null,
+    constants::{Format, Null},
     date::UnixDate,
     enums::{ArchiveDataType, GroupType, KdfVersion, MailFolderType},
     keys::{EncryptedKey, OptionalEncryptedKey},
+    numbers::Number,
 };
 
 pub(crate) trait Entity {
@@ -145,7 +144,7 @@ impl Entity for FolderResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct MailSender {
+pub(crate) struct MailAddress {
     pub(crate) address: String,
     pub(crate) name: Base64String,
 }
@@ -165,11 +164,12 @@ pub(crate) struct MailReponse {
     #[serde(rename = "_id")]
     pub(crate) id: [String; 2],
 
-    pub(crate) mail_details: [String; 2],
+    pub(crate) mail_details: Option<[String; 2]>,
+    pub(crate) mail_details_draft: Option<[String; 2]>,
 
     pub(crate) received_date: UnixDate,
     pub(crate) subject: Base64String,
-    pub(crate) sender: MailSender,
+    pub(crate) sender: MailAddress,
     pub(crate) attachments: Vec<[String; 2]>,
 }
 
@@ -248,6 +248,14 @@ pub(crate) struct MailHeaders {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct MailRecipients {
+    pub(crate) bcc_recipients: Vec<MailAddress>,
+    pub(crate) cc_recipients: Vec<MailAddress>,
+    pub(crate) to_recipients: Vec<MailAddress>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct MailDetails {
     pub(crate) body: MailBody,
 
@@ -255,6 +263,8 @@ pub(crate) struct MailDetails {
     ///
     /// These only appear for true emails, not for internal messages.
     pub(crate) headers: Option<MailHeaders>,
+
+    pub(crate) recipients: MailRecipients,
 }
 
 #[derive(Debug, Deserialize)]
@@ -271,6 +281,7 @@ pub(crate) struct MailDetailsBlob {
 pub(crate) struct FileBlob {
     pub(crate) archive_id: String,
     pub(crate) blob_id: String,
+    pub(crate) size: Number,
 }
 
 #[derive(Debug, Deserialize)]
@@ -288,7 +299,8 @@ pub(crate) struct FileReponse {
     pub(crate) cid: Option<Base64String>,
     pub(crate) mime_type: Base64String,
     pub(crate) name: Base64String,
-    pub(crate) blobs: [FileBlob; 1],
+    pub(crate) size: Number,
+    pub(crate) blobs: Vec<FileBlob>,
 }
 
 #[derive(Debug, Serialize)]

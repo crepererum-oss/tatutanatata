@@ -1,10 +1,10 @@
 use std::sync::OnceLock;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use itertools::Itertools;
 
 use crate::{
-    mails::{DownloadedMail, Mail},
+    mails::{Address, DownloadedMail},
     proto::binary::Base64String,
 };
 
@@ -24,7 +24,7 @@ pub(crate) fn emit_eml(mail: &DownloadedMail) -> Result<String> {
 
         lines.append(&mut headers);
     } else {
-        synthesize_headers(&mail.mail, &mut lines);
+        synthesize_headers(mail, &mut lines);
     }
     lines.push(format!(
         "Content-Type: multipart/related; boundary=\"{}\"",
@@ -67,16 +67,43 @@ pub(crate) fn emit_eml(mail: &DownloadedMail) -> Result<String> {
 }
 
 /// Create headers from metadata.
-fn synthesize_headers(mail: &Mail, lines: &mut Vec<String>) {
-    lines.push(format!("From: {} <{}>", mail.sender_name, mail.sender_mail));
-
+fn synthesize_headers(mail: &DownloadedMail, lines: &mut Vec<String>) {
+    lines.push(address_header("From", [&mail.mail.sender]));
     lines.push("MIME-Version: 1.0".to_owned());
 
-    if mail.subject.is_empty() {
+    if mail.mail.subject.is_empty() {
         lines.push("Subject: ".to_owned());
     } else {
-        lines.push(format!("Subject: {}", utf8_header_value(&mail.subject),));
+        lines.push(format!(
+            "Subject: {}",
+            utf8_header_value(&mail.mail.subject),
+        ));
     };
+
+    if !mail.bcc.is_empty() {
+        lines.push(address_header("BCC", &mail.bcc));
+    }
+    if !mail.cc.is_empty() {
+        lines.push(address_header("CC", &mail.cc));
+    }
+    if !mail.to.is_empty() {
+        lines.push(address_header("To", &mail.to));
+    }
+}
+
+/// Create address headers
+fn address_header<'a>(
+    header: &'static str,
+    addrs: impl IntoIterator<Item = &'a Address>,
+) -> String {
+    format!(
+        "{}: {}",
+        header,
+        addrs
+            .into_iter()
+            .map(|addr| format!("{} <{}>", utf8_header_value(&addr.name), addr.mail))
+            .join(","),
+    )
 }
 
 fn line_ending_re() -> &'static regex::Regex {
@@ -111,11 +138,9 @@ fn remove_content_type(headers: Vec<String>) -> Result<Vec<String>> {
 
     let mut out = Vec::with_capacity(headers.len());
     let mut in_content_type = false;
-    let mut found_content_type = false;
     for header in headers {
         if content_type_re.is_match(&header) {
             in_content_type = true;
-            found_content_type = true;
             // skip
         } else if in_content_type && start_with_spaces_re.is_match(&header) {
             // skip
@@ -126,9 +151,6 @@ fn remove_content_type(headers: Vec<String>) -> Result<Vec<String>> {
         }
     }
 
-    if !found_content_type {
-        bail!("content type header not found");
-    }
     Ok(out)
 }
 
@@ -150,41 +172,53 @@ fn write_chunked(lines: &mut Vec<String>, s: &str) {
     }
 }
 
+/// See <https://www.rfc-editor.org/rfc/rfc2047>.
 fn utf8_header_value(s: &str) -> String {
     format!("=?UTF-8?B?{}?=", Base64String::from(s.as_bytes()))
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use chrono::DateTime;
 
-    use crate::{mails::Attachment, proto::keys::Key};
+    use crate::{
+        mails::{Attachment, Mail},
+        proto::keys::Key,
+    };
 
     use super::*;
 
     #[test]
     fn test_simple() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
                 attachments: vec![],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
                     .to_owned(),
             ),
             body: b"hello world".to_vec(),
             attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
@@ -204,23 +238,29 @@ mod tests {
     #[test]
     fn test_plain_email() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
                 attachments: vec![],
-            },
+            }),
             headers: Some("From: foo@example.com\nContent-Type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
@@ -240,23 +280,29 @@ mod tests {
     #[test]
     fn test_content_type_lower_case() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
                 attachments: vec![],
-            },
+            }),
             headers: Some("From: foo@example.com\ncontent-type: text/plain".to_owned()),
             body: b"hello world".to_vec(),
             attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
@@ -276,26 +322,32 @@ mod tests {
     #[test]
     fn test_content_type_multi_line() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
                 attachments: vec![],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related;\n\tboundary=\"myboundary\"\nFoo: bar\nContent-Type: text/plain\nFoo2: bar2"
                     .to_owned(),
             ),
             body: b"hello world".to_vec(),
             attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
@@ -315,26 +367,72 @@ mod tests {
     }
 
     #[test]
-    fn test_attachments() {
+    fn test_content_type_missing() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
+                attachments: vec![],
+            }),
+            headers: Some("From: foo@example.com\nFoo: bar".to_owned()),
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: foo@example.com
+        Foo: bar
+        Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        ------------79Bu5A16qPEYcVIZL@tutanota--
+        "###);
+    }
+
+    #[test]
+    fn test_attachments() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Arc::new(Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                is_draft: false,
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Me".to_owned(),
+                },
                 attachments: vec![
                     ["a".to_owned(), "b".to_owned()],
                     ["c".to_owned(), "d".to_owned()],
                     ["e".to_owned(), "f".to_owned()],
                 ],
-            },
+            }),
             headers: Some(
                 "From: foo@example.com\nContent-Type: multipart/related; boundary=\"myboundary\""
                     .to_owned(),
@@ -360,6 +458,9 @@ mod tests {
                     data: b"xcddd".to_vec(),
                 },
             ],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
@@ -400,31 +501,111 @@ mod tests {
     }
 
     #[test]
-    fn test_synthesize_headers() {
+    fn test_synthesize_headers_minimal() {
         let eml = emit_eml(&DownloadedMail {
-            mail: Mail {
+            mail: Arc::new(Mail {
                 folder_id: "folder_id".to_owned(),
                 mail_id: "mail_id".to_owned(),
                 archive_id: "archive_id".to_owned(),
                 blob_id: "blob_id".to_owned(),
+                is_draft: false,
                 session_key: Key::Aes256([0; 32]),
                 date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
                     .unwrap()
                     .to_utc(),
                 subject: "Hällö".to_owned(),
-                sender_mail: "foo@example.com".to_owned(),
-                sender_name: "Me".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Mé".to_owned(),
+                },
                 attachments: vec![],
-            },
+            }),
             headers: None,
             body: b"hello world".to_vec(),
             attachments: vec![],
+            bcc: vec![],
+            cc: vec![],
+            to: vec![],
         })
         .unwrap();
         insta::assert_snapshot!(eml, @r###"
-        From: Me <foo@example.com>
+        From: =?UTF-8?B?TcOp?= <foo@example.com>
         MIME-Version: 1.0
         Subject: =?UTF-8?B?SMOkbGzDtg==?=
+        Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
+
+        ------------79Bu5A16qPEYcVIZL@tutanota
+        Content-Type: text/html; charset=UTF-8
+        Content-Transfer-Encoding: base64
+
+        aGVsbG8gd29ybGQ=
+
+        ------------79Bu5A16qPEYcVIZL@tutanota--
+        "###);
+    }
+
+    #[test]
+    fn test_synthesize_headers_to_all() {
+        let eml = emit_eml(&DownloadedMail {
+            mail: Arc::new(Mail {
+                folder_id: "folder_id".to_owned(),
+                mail_id: "mail_id".to_owned(),
+                archive_id: "archive_id".to_owned(),
+                blob_id: "blob_id".to_owned(),
+                is_draft: false,
+                session_key: Key::Aes256([0; 32]),
+                date: DateTime::parse_from_rfc3339("2020-03-04T11:22:33Z")
+                    .unwrap()
+                    .to_utc(),
+                subject: "Hällö".to_owned(),
+                sender: Address {
+                    mail: "foo@example.com".to_owned(),
+                    name: "Mé".to_owned(),
+                },
+                attachments: vec![],
+            }),
+            headers: None,
+            body: b"hello world".to_vec(),
+            attachments: vec![],
+            bcc: vec![
+                Address {
+                    mail: "bar1@example.com".to_owned(),
+                    name: "Óther 1".to_owned(),
+                },
+                Address {
+                    mail: "bar2@example.com".to_owned(),
+                    name: "Óther 2".to_owned(),
+                },
+            ],
+            cc: vec![
+                Address {
+                    mail: "bar3@example.com".to_owned(),
+                    name: "Óther 3".to_owned(),
+                },
+                Address {
+                    mail: "bar4@example.com".to_owned(),
+                    name: "Óther 4".to_owned(),
+                },
+            ],
+            to: vec![
+                Address {
+                    mail: "bar5@example.com".to_owned(),
+                    name: "Óther 5".to_owned(),
+                },
+                Address {
+                    mail: "bar6@example.com".to_owned(),
+                    name: "Óther 6".to_owned(),
+                },
+            ],
+        })
+        .unwrap();
+        insta::assert_snapshot!(eml, @r###"
+        From: =?UTF-8?B?TcOp?= <foo@example.com>
+        MIME-Version: 1.0
+        Subject: =?UTF-8?B?SMOkbGzDtg==?=
+        BCC: =?UTF-8?B?w5N0aGVyIDE=?= <bar1@example.com>,=?UTF-8?B?w5N0aGVyIDI=?= <bar2@example.com>
+        CC: =?UTF-8?B?w5N0aGVyIDM=?= <bar3@example.com>,=?UTF-8?B?w5N0aGVyIDQ=?= <bar4@example.com>
+        To: =?UTF-8?B?w5N0aGVyIDU=?= <bar5@example.com>,=?UTF-8?B?w5N0aGVyIDY=?= <bar6@example.com>
         Content-Type: multipart/related; boundary="----------79Bu5A16qPEYcVIZL@tutanota"
 
         ------------79Bu5A16qPEYcVIZL@tutanota

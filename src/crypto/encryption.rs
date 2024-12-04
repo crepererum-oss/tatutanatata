@@ -42,6 +42,10 @@ pub(crate) fn decrypt_key(encryption_key: Key, key_to_be_decrypted: EncryptedKey
 }
 
 pub(crate) fn decrypt_value(encryption_key: Key, value: &[u8]) -> Result<Vec<u8>> {
+    if value.is_empty() {
+        return Ok(vec![]);
+    }
+
     decrypt(encryption_key, value, true)
 }
 
@@ -139,59 +143,49 @@ impl From<Key> for Subkeys {
 
 #[cfg(test)]
 mod tests {
+    use hex_literal::hex;
+
     use super::*;
 
     #[test]
     fn test_decrypt_key() {
         assert_eq!(
             decrypt_key(
-                Key::Aes128([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                EncryptedKey::Aes128NoMac([
-                    10u8, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160
-                ]),
+                Key::Aes128(hex!("0102030405060708090a0b0c0d0e0f10")),
+                EncryptedKey::Aes128NoMac(hex!("0a141e28323c46505a646e78828c96a0")),
             )
             .unwrap(),
-            Key::Aes128([177u8, 11, 11, 117, 32, 75, 2, 15, 107, 230, 248, 94, 26, 11, 143, 0]),
+            Key::Aes128(hex!("b10b0b75204b020f6be6f85e1a0b8f00")),
         );
 
         assert_eq!(
             decrypt_key(
-                Key::Aes128([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-                EncryptedKey::Aes256NoMac([42; 32]),
+                Key::Aes128(hex!("0102030405060708090a0b0c0d0e0f10")),
+                EncryptedKey::Aes256NoMac(hex!(
+                    "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"
+                )),
             )
             .unwrap(),
-            Key::Aes256([
-                167, 228, 240, 83, 0, 221, 168, 213, 118, 210, 12, 226, 248, 24, 227, 195, 5, 70,
-                82, 241, 162, 127, 10, 119, 212, 112, 174, 64, 90, 186, 65, 97
-            ]),
+            Key::Aes256(hex!(
+                "a7e4f05300dda8d576d20ce2f818e3c3054652f1a27f0a77d470ae405aba4161"
+            )),
         );
 
         assert_eq!(
             decrypt_key(
-                Key::Aes256([
-                    168, 18, 253, 146, 180, 160, 144, 17, 181, 23, 153, 71, 126, 140, 5, 122, 189,
-                    109, 232, 217, 2, 26, 130, 137, 191, 228, 33, 13, 104, 18, 220, 192,
-                ],),
-                EncryptedKey::Aes128WithMac([
-                    1, 17, 85, 164, 64, 137, 179, 181, 108, 128, 157, 31, 215, 209, 169, 34, 71,
-                    106, 92, 19, 222, 85, 91, 120, 167, 37, 139, 139, 63, 55, 197, 186, 131, 158,
-                    16, 187, 224, 101, 41, 163, 91, 255, 170, 107, 37, 130, 217, 184, 167, 123, 31,
-                    117, 36, 126, 42, 124, 162, 56, 32, 42, 190, 47, 63, 245, 95,
-                ],)
+                Key::Aes256(hex!("a812fd92b4a09011b51799477e8c057abd6de8d9021a8289bfe4210d6812dcc0")),
+                EncryptedKey::Aes128WithMac(hex!("011155a44089b3b56c809d1fd7d1a922476a5c13de555b78a7258b8b3f37c5ba839e10bbe06529a35bffaa6b2582d9b8a77b1f75247e2a7ca238202abe2f3ff55f")),
             )
             .unwrap(),
-            Key::Aes128([
-                197, 71, 160, 239, 145, 155, 190, 41, 229, 171, 174, 235, 106, 199, 82, 100
-            ]),
+            Key::Aes128(hex!("c547a0ef919bbe29e5abaeeb6ac75264")),
         );
     }
 
     #[test]
     fn test_decrypt_value() {
-        let k = Key::Aes256([
-            163, 52, 230, 134, 76, 199, 13, 61, 124, 69, 58, 80, 3, 1, 198, 219, 215, 51, 42, 8,
-            59, 76, 55, 188, 101, 165, 209, 167, 111, 205, 128, 60,
-        ]);
+        let k = Key::Aes256(hex!(
+            "a334e6864cc70d3d7c453a500301c6dbd7332a083b4c37bc65a5d1a76fcd803c"
+        ));
 
         let v = [
             1, 1, 221, 88, 186, 70, 178, 125, 28, 66, 245, 102, 7, 214, 121, 162, 88, 138, 118,
@@ -199,12 +193,12 @@ mod tests {
             117, 32, 158, 29, 154, 194, 98, 55, 215, 5, 129, 18, 13, 32, 165, 44, 185, 129, 14, 78,
             146, 134, 10, 134, 81, 50, 252, 212,
         ];
-
         assert_eq!(decrypt_value(k, &v,).unwrap(), b"fooooo".to_owned(),);
+
+        assert_eq!(decrypt_value(k, &[]).unwrap(), b"".to_owned());
 
         let mut v_broken = v;
         v_broken[1] = 0;
-
         assert_eq!(
             decrypt_value(k, &v_broken).unwrap_err().to_string(),
             "HMAC verification",

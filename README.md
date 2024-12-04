@@ -11,17 +11,17 @@ CLI (Command Line Interface) for [Tutanota], mostly meant for mass export.
 
 ## Why
 [Tutanota] simple does NOT support single-click export of your emails (see [issue1292]). This is bad because their data
-format is proprietary (someone could argue that this even violats the [GDPR]). Now even if you are a happy customer of
+format is proprietary (someone could argue that this even violets the [GDPR]). Now even if you are a happy customer of
 theirs[^me_as_a_customer], you may want to export your email for the following reasons:
 
-- **Vendor Lock-in:** You may want to move to a different service for varios reasons.
+- **Vendor Lock-in:** You may want to move to a different service for various reasons.
 - **Cost Savings:** You may not want to store your entire email archive at their servers and pay for it, even when you
   rarely touch the mails. Some situations (e.g. legal reasons) may require you to store your data for a long time.
 - **Single Point of Failure:** [Tutanota] is only a rather small company and definitely not "too big to fail".
 - **Faster Archive Search:** Searching through your email archive with their official app can be rather slow and
   painful.
 - **Raw Mails:** You may want/need to inspect the raw email data, e.g. when receiving content that is encrypted/signed
-  via [S/MIME], [PGP], or [autocrypt].
+  via [S/MIME], [PGP], or [autocrypt]. Also see [standards used by Delta Chat].
 
 
 ## Usage
@@ -53,7 +53,7 @@ AnotherFolder
 Then pick one to export:
 
 ```console
-$ cargo run --release -- -v export --folder MyFolder
+$ cargo run --release -- -v download --folder=MyFolder --path=./output
 ```
 
 You should now find all [EML] files in `./out`. You can use them in about any Email program of your choice, e.g.
@@ -93,5 +93,6 @@ in the Apache-2.0 license, shall be dual-licensed as above, without any addition
 [PGP]: https://en.wikipedia.org/wiki/Pretty_Good_Privacy
 [Rust]: https://www.rust-lang.org/
 [S/MIME]: https://en.wikipedia.org/wiki/S/MIME
+[standards used by Delta Chat]: https://github.com/deltachat/deltachat-core-rust/blob/main/standards.md
 [Thunderbird]: https://www.thunderbird.net/
 [Tutanota]: https://tutanota.com/

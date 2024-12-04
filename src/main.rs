@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use crate::{
     client::Client,
@@ -9,9 +9,11 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use constants::VERSION_STRING;
 use folders::Folder;
 use futures::{StreamExt, TryStreamExt};
 use logging::{setup_logging, LoggingCLIConfig};
+use signal::FutureSignalExt;
 use tracing::{debug, info};
 
 // Workaround for "unused crate" lint false positives.
@@ -35,13 +37,24 @@ mod mails;
 mod non_empty_string;
 mod proto;
 mod session;
+mod signal;
 
 /// CLI args.
 #[derive(Debug, Parser)]
+#[command(
+    about = "CLI (Command Line Interface) for Tutanota/Tuta, mostly meant for mass export.",
+    version = VERSION_STRING,
+)]
 struct Args {
     /// Logging config.
     #[clap(flatten)]
     logging_cfg: LoggingCLIConfig,
+
+    /// Dump JSON responses of server to given folder.
+    ///
+    /// This is useful for development and debugging.
+    #[clap(long)]
+    debug_dump_json_to: Option<PathBuf>,
 
     /// Login config.
     #[clap(flatten)]
@@ -83,13 +96,16 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     setup_logging(args.logging_cfg).context("logging setup")?;
 
-    let client = Client::try_new().context("set up client")?;
+    let client = Client::try_new(args.debug_dump_json_to)
+        .await
+        .context("set up client")?;
 
     let session = Session::login(args.login_cfg, &client)
         .await
         .context("perform login")?;
 
     let cmd_res = exec_cmd(&client, &session, args.command)
+        .cancel_on_signal()
         .await
         .context("execute command");
     let logout_res = session.logout(&client).await.context("logout");
@@ -138,14 +154,14 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
 
                     async move {
                         let mail = mail.context("list mail")?;
-                        let folder_id = mail.folder_id.clone();
-                        let mail_id = mail.mail_id.clone();
-                        let ui_url = mail.ui_url();
 
                         let target_file = cfg.path.join(format!(
                             "{}-{}.eml",
                             mail.date.format("%Y-%m-%d-%Hh%Mm%Ss"),
-                            escape_file_string(&mail.subject),
+                            escape_file_string(&mail.subject)
+                                .chars()
+                                .take(64)
+                                .collect::<String>(),
                         ));
 
                         if tokio::fs::try_exists(&target_file)
@@ -153,25 +169,33 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                             .context("check file existence")?
                         {
                             info!(
-                                folder_id = folder_id.as_str(),
-                                mail_id = mail_id.as_str(),
+                                folder_id = mail.folder_id.as_str(),
+                                mail_id = mail.mail_id.as_str(),
+                                target_file = %target_file.display(),
+                                ui_url = mail.ui_url().as_str(),
                                 "already exists",
                             );
                         } else {
                             info!(
-                                folder_id = folder_id.as_str(),
-                                mail_id = mail_id.as_str(),
+                                folder_id = mail.folder_id.as_str(),
+                                mail_id = mail.mail_id.as_str(),
+                                target_file = %target_file.display(),
+                                ui_url = mail.ui_url().as_str(),
                                 "download",
                             );
 
-                            let mail = mail
+                            let mail = Arc::clone(&mail)
                                 .download(client, session)
                                 .await
-                                .with_context(|| format!("download mail (`{}`)", ui_url))?;
-                            let eml = emit_eml(&mail).context("emit eml")?;
+                                .with_context(|| format!("download mail: `{}`", mail.ui_url()))?;
+
+                            let eml = emit_eml(&mail)
+                                .with_context(|| format!("emit eml: `{}`", mail.mail.ui_url()))?;
                             write_to_file(eml.as_bytes(), &target_file)
                                 .await
-                                .context("write output file")?;
+                                .with_context(|| {
+                                    format!("write output file: `{}`", target_file.display())
+                                })?;
                         }
 
                         Ok(()) as Result<()>
