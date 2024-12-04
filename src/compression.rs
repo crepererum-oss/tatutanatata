@@ -12,6 +12,7 @@ pub(crate) fn decompress_value(v: &[u8]) -> Result<Vec<u8>> {
             }
         }
     }
+}
 
 #[cfg(test)]
 mod tests {
