@@ -57,6 +57,7 @@ impl Mail {
         client: &Client,
         session: &Session,
         folder: &Folder,
+        ignore_new_mails: bool,
     ) -> impl Stream<Item = Result<Arc<Self>>> {
         let group_keys = Arc::clone(&session.group_keys);
         let folder_id = folder.id.clone();
@@ -69,18 +70,36 @@ impl Mail {
                 let group_keys = Arc::clone(&group_keys);
                 let folder_id = folder_id.clone();
                 async move {
-                    let mail = Self::decode(m, &group_keys, folder_id)?;
-                    Ok(Arc::new(mail))
+                    Self::decode(m, &group_keys, folder_id)
+                }
+            })
+            .try_filter_map(move |mail| async move {
+                match mail {
+                    Some(mail) => Ok(Some(Arc::new(mail))),
+                    None if ignore_new_mails => Ok(None),
+                    None => bail!("Folder contains new mail that has not been decoded before. Use the official app and view the folder to decode the data, or pass --ignore-new-mails to skip new emails."),
                 }
             })
     }
 
-    fn decode(resp: MailReponse, group_keys: &GroupKeys, folder_id: String) -> Result<Self> {
+    /// Decode [`MailReponse`].
+    ///
+    /// Returns [`None`] if no encryption key is set. This usually happens when the mail was NOT
+    /// processed via the official app yet.
+    fn decode(
+        resp: MailReponse,
+        group_keys: &GroupKeys,
+        folder_id: String,
+    ) -> Result<Option<Self>> {
+        let Some(key) = resp.owner_enc_session_key else {
+            return Ok(None);
+        };
+
         let session_key = decrypt_key(
             group_keys
                 .get(&resp.owner_group)
                 .context("getting owner group key")?,
-            resp.owner_enc_session_key,
+            key,
         )
         .context("decrypting session key")?;
 
@@ -100,7 +119,7 @@ impl Mail {
             }
         };
 
-        Ok(Self {
+        Ok(Some(Self {
             folder_id,
             mail_id: resp.id[1].clone(),
             archive_id,
@@ -111,7 +130,7 @@ impl Mail {
             subject,
             sender,
             attachments: resp.attachments,
-        })
+        }))
     }
 
     pub(crate) fn ui_url(&self) -> String {

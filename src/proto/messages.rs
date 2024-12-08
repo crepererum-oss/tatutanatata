@@ -156,7 +156,7 @@ pub(crate) struct MailReponse {
     pub(crate) _format: Format<0>,
 
     #[serde(rename = "_ownerEncSessionKey")]
-    pub(crate) owner_enc_session_key: EncryptedKey,
+    pub(crate) owner_enc_session_key: Option<EncryptedKey>,
 
     #[serde(rename = "_ownerGroup")]
     pub(crate) owner_group: String,
