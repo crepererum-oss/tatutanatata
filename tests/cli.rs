@@ -115,4 +115,34 @@ mod integration {
             similar_asserts::assert_eq!(actual_content, expected_content);
         }
     }
+
+    #[test]
+    fn test_new_mail_without_flag() {
+        let path = TempDir::new().unwrap();
+
+        let mut cmd = cmd();
+        cmd.arg("-vv")
+            .arg("download")
+            .arg("--folder=Inbox")
+            .arg("--path")
+            .arg(path.path())
+            .assert()
+            .failure()
+            .stderr(predicates::str::contains("--ignore-new-mails"));
+    }
+
+    #[test]
+    fn test_new_mail_with_flag() {
+        let path = TempDir::new().unwrap();
+
+        let mut cmd = cmd();
+        cmd.arg("-vv")
+            .arg("download")
+            .arg("--folder=Inbox")
+            .arg("--path")
+            .arg(path.path())
+            .arg("--ignore-new-mails")
+            .assert()
+            .success();
+    }
 }

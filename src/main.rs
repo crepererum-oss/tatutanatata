@@ -20,6 +20,8 @@ use tracing::{debug, info};
 #[cfg(test)]
 use assert_cmd as _;
 #[cfg(test)]
+use predicates as _;
+#[cfg(test)]
 use similar_asserts as _;
 #[cfg(test)]
 use tempfile as _;
@@ -79,6 +81,13 @@ struct DownloadCLIConfig {
     /// Target path.
     #[clap(long, action)]
     path: PathBuf,
+
+    /// Ignore new mails that cannot be decrypted (yet).
+    ///
+    /// Use the official app to view and respective folder. This will convert the mail data to a
+    /// format that we can read.
+    #[clap(long, action)]
+    ignore_new_mails: bool,
 }
 
 /// Command
@@ -149,7 +158,7 @@ async fn exec_cmd(client: &Client, session: &Session, cmd: Command) -> Result<()
                 .context("folder not found")?;
             debug!(mails = folder.mails.as_str(), "download mails from folder");
 
-            Mail::list(client, session, &folder)
+            Mail::list(client, session, &folder, cfg.ignore_new_mails)
                 .map(|mail| {
                     let cfg = &cfg;
 
