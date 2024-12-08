@@ -36,6 +36,7 @@ mod logging;
 mod mails;
 mod non_empty_string;
 mod proto;
+mod retry;
 mod session;
 mod signal;
 

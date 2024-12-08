@@ -8,7 +8,7 @@ use tokio::{
     sync::mpsc::{channel, Receiver},
     task::JoinSet,
 };
-use tracing::{debug, warn};
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
@@ -290,19 +290,13 @@ where
     }
 }
 
-async fn retry<F, Fut, T>(action: F) -> Result<T, reqwest::Error>
+async fn retry<F, Fut, T>(action: F) -> Result<T>
 where
     F: Fn() -> Fut + Send,
     Fut: Future<Output = Result<T, reqwest::Error>> + Send,
+    T: Send,
 {
-    // WARNING: The exponential config is somewhat weird. `from_millis(base).factor(factor)` means
-    //          `base^retry * factor`.
-    //          Also see https://github.com/srijs/rust-tokio-retry/issues/22 .
-    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(2)
-        .factor(500)
-        .map(tokio_retry::strategy::jitter);
-
-    let condition = |e: &reqwest::Error| {
+    crate::retry::retry("REST client", action, |e| {
         if e.is_connect() || e.is_timeout() {
             return true;
         }
@@ -317,14 +311,6 @@ where
         }
 
         false
-    };
-    let condition = move |e: &reqwest::Error| {
-        let should_retry = condition(e);
-        if should_retry {
-            warn!(%e, "retry client error");
-        }
-        should_retry
-    };
-
-    tokio_retry::RetryIf::spawn(strategy, action, condition).await
+    })
+    .await
 }
