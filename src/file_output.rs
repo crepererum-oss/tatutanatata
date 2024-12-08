@@ -2,7 +2,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use tracing::warn;
+
+use crate::retry::retry;
 
 pub(crate) async fn write_to_file(content: &[u8], path: &Path) -> Result<()> {
     let tmp_path = path.with_extension(".part");
@@ -22,30 +23,15 @@ pub(crate) async fn write_to_file(content: &[u8], path: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn rename(old: &Path, new: &Path) -> Result<(), std::io::Error> {
+async fn rename(old: &Path, new: &Path) -> Result<()> {
     // some file systems like SMB may not sync immediately and return "not found" shortly after file
     // creation
-
-    // WARNING: The exponential config is somewhat weird. `from_millis(base).factor(factor)` means
-    //          `base^retry * factor`.
-    //          Also see https://github.com/srijs/rust-tokio-retry/issues/22 .
-    let strategy = tokio_retry::strategy::ExponentialBackoff::from_millis(2)
-        .factor(500)
-        .map(tokio_retry::strategy::jitter)
-        .take(10);
-
-    let condition = |e: &std::io::Error| e.kind() == std::io::ErrorKind::NotFound;
-    let condition = |e: &std::io::Error| {
-        let should_retry = condition(e);
-        if should_retry {
-            warn!(%e, "retry rename");
-        }
-        should_retry
-    };
-
-    let action = || async move { tokio::fs::rename(old, new).await };
-
-    tokio_retry::RetryIf::spawn(strategy, action, condition).await
+    retry(
+        "rename file",
+        || async move { tokio::fs::rename(old, new).await },
+        |e| e.kind() == std::io::ErrorKind::NotFound,
+    )
+    .await
 }
 
 pub(crate) fn escape_file_string(s: &str) -> String {
