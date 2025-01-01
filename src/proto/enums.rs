@@ -84,6 +84,8 @@ build_enum!(
         Archive = "4",
         Spam = "5",
         Draft = "6",
+        All = "7",
+        Label = "8",
     ],
 );
 
