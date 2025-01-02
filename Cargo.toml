@@ -16,7 +16,7 @@ clap = { version = "4.5.23", features = ["derive", "env"] }
 dotenvy = "0.15.7"
 futures = "0.3.31"
 hmac = "0.12.1"
-itertools = "0.13.0"
+itertools = "0.14.0"
 lz4_flex = "0.11.3"
 rand = "0.8.5"
 regex = "1.11.1"
