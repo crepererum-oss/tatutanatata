@@ -29,7 +29,7 @@ tokio = { version = "1.42.0", features = ["fs", "macros", "rt-multi-thread", "si
 tracing = "0.1.41"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-uuid = { version = "1.11.0", features = ["v4"] }
+uuid = { version = "1.11.1", features = ["v4"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.16"
