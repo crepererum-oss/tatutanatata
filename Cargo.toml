@@ -34,7 +34,7 @@ uuid = { version = "1.12.1", features = ["v4"] }
 [dev-dependencies]
 assert_cmd = "2.0.16"
 hex-literal = "0.4.1"
-insta = "1.42.0"
+insta = "1.42.1"
 predicates = "3.1.2"
 similar-asserts = "1.6.1"
 tempfile = "3"
