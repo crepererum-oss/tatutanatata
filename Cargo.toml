@@ -18,7 +18,7 @@ futures = "0.3.31"
 hmac = "0.12.1"
 itertools = "0.14.0"
 lz4_flex = "0.11.3"
-rand = "0.8.5"
+rand = "0.9.0"
 regex = "1.11.1"
 reqwest = { version = "0.12", default-features = false, features = ["brotli", "charset", "deflate", "gzip", "hickory-dns", "http2", "json", "rustls-tls-webpki-roots"] }
 serde = { version = "1.0", features = ["derive"] }
