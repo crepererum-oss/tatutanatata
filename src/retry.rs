@@ -1,7 +1,7 @@
 use std::{future::Future, time::Duration};
 
 use anyhow::{Context, Result};
-use rand::{rngs::StdRng, thread_rng, Rng, RngCore, SeedableRng};
+use rand::{rng, rngs::StdRng, Rng, RngCore, SeedableRng};
 use tracing::warn;
 
 /// Exponential backoff with jitter
@@ -53,7 +53,7 @@ impl Default for Config {
             cap: Duration::from_secs(60),
             base: Duration::from_millis(100),
             deadline: Duration::from_secs(600),
-            rng: Box::new(StdRng::from_rng(thread_rng()).expect("RNG init")),
+            rng: Box::new(StdRng::from_rng(&mut rng())),
         }
     }
 }
@@ -78,7 +78,7 @@ impl Iterator for Sleep {
         self.sleep = self
             .config
             .cap
-            .min(Duration::from_secs_f64(self.config.rng.gen_range(
+            .min(Duration::from_secs_f64(self.config.rng.random_range(
                 self.config.base.as_secs_f64()..(sleep.as_secs_f64() * self.config.multiplier),
             )));
         Some(sleep)

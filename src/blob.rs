@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use rand::{seq::IteratorRandom, thread_rng};
+use rand::{rng, seq::IteratorRandom};
 use reqwest::Method;
 
 use crate::{
@@ -164,12 +164,7 @@ async fn get_access(
         .await
         .context("blob service access request")?;
 
-    let Some(server) = resp
-        .blob_access_info
-        .servers
-        .into_iter()
-        .choose(&mut thread_rng())
-    else {
+    let Some(server) = resp.blob_access_info.servers.into_iter().choose(&mut rng()) else {
         bail!("no blob servers provided")
     };
 
